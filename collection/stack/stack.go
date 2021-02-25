@@ -1,7 +1,7 @@
 package stack
 
 import (
-	"github.com/go/rt/collection/vector"
+	"github.com/muzin/go/rt/collection/vector"
 )
 
 type Stack struct {
