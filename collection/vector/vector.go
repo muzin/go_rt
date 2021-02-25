@@ -1,7 +1,7 @@
 package vector
 
 import (
-	"go/rt/system"
+	"github.com/go/rt/system"
 	"sync"
 )
 

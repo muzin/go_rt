@@ -2,7 +2,7 @@ package stack
 
 import (
 	"fmt"
-	"go/rt/collection/vector"
+	"github.com/go/rt/collection/vector"
 	"reflect"
 	"testing"
 )
