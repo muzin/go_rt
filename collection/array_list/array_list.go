@@ -1,7 +1,7 @@
 package array_list
 
 import (
-	"github.com/muzin/go/rt/system"
+	"go/rt/system"
 )
 
 const (

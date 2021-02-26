@@ -1,3 +1,3 @@
-module github.com/muzin/go/rt
+module go/rt
 
 go 1.12

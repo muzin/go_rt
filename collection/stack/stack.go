@@ -1,7 +1,7 @@
 package stack
 
 import (
-	"github.com/muzin/go/rt/collection/vector"
+	"go/rt/collection/vector"
 )
 
 type Stack struct {
@@ -33,6 +33,11 @@ func (stack *Stack) Shift() *interface{} {
 		return firstElement
 	}
 	return nil
+}
+
+func (stack *Stack) Get(i int) *interface{} {
+	obj := stack.vector.Get(i)
+	return obj
 }
 
 func (stack *Stack) Size() int {

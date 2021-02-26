@@ -1,7 +1,7 @@
 package vector
 
 import (
-	"github.com/muzin/go/rt/system"
+	"go/rt/system"
 	"sync"
 )
 

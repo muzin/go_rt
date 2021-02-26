@@ -48,19 +48,6 @@ func CatchUncaughtException(cb func(Throwable)) func() {
 				// 如果 没有 匹配到 异常 继续向上 抛 异常
 				panic(e)
 			}
-			//if typeOfE.Kind() == Throwable {
-			//	errname := err.GetName()
-			//	ename := (e.(Throwable)).GetName()
-			//	if(errname == ename){
-			//		cb(e.(Throwable))
-			//	}else{
-			//		// 如果 没有 匹配到 异常 继续向上 抛 异常
-			//		panic(e)
-			//	}
-			//} else {
-			//	// 如果 没有 匹配到 异常 继续向上 抛 异常
-			//	panic(e)
-			//}
 		}
 	}
 }
@@ -84,3 +71,6 @@ func getStackTrace(err interface{}) string {
 
 // declare Error Exception
 var Error = DeclareException("Error")
+
+// declare UnhandledError Exception
+var UnhandledError = DeclareException("UnhandledError")
