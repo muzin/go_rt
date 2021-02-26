@@ -17,6 +17,8 @@
    
    其中原理请了解`panic/recover`工作机制
 
+> 声明异常推荐全局声明
+
 
 #### 示例：
 
@@ -27,6 +29,17 @@ var PointException = try.DeclareException("PointException")
 
 // 捕获异常  可以将 捕获异常放到 抛异常之前，可以在抛出异常之前 定义 异常的捕获，防止异常没有处理
 defer try.Catch(try.PointException, func(err Throwable){
+    err.PrintStackTrace()
+})()
+// 抛异常
+try.Throw(try.PointException.NewThrow("指针"))
+
+
+// or
+
+
+// 捕获异常  可以将 捕获异常放到 抛异常之前，可以在抛出异常之前 定义 异常的捕获，防止异常没有处理
+defer try.CatchUncaughtException(func(err Throwable){
     err.PrintStackTrace()
 })()
 // 抛异常
