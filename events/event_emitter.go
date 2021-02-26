@@ -2,9 +2,9 @@ package events
 
 import (
 	"fmt"
-	colorstr "go/rt/collection/print/color_string"
-	str "go/rt/lang/str"
-	"go/rt/try"
+	colorstr "github.com/muzin/go_rt/collection/print/color_string"
+	str "github.com/muzin/go_rt/lang/str"
+	"github.com/muzin/go_rt/try"
 )
 
 const (

@@ -2,7 +2,7 @@ package events
 
 import (
 	"fmt"
-	"go/rt/try"
+	"github.com/muzin/go_rt/try"
 	"strconv"
 	"testing"
 )

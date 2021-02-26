@@ -2,7 +2,7 @@ package stack
 
 import (
 	"fmt"
-	"go/rt/collection/vector"
+	"github.com/muzin/go_rt/collection/vector"
 	"reflect"
 	"testing"
 )
