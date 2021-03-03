@@ -5,6 +5,7 @@ import (
 	colorstr "github.com/muzin/go_rt/collection/print/color_string"
 	str "github.com/muzin/go_rt/lang/str"
 	"github.com/muzin/go_rt/try"
+	"sync"
 )
 
 const (
@@ -25,6 +26,14 @@ type EventEmitter struct {
 	events map[string][]func(...interface{})
 
 	maxListeners int
+
+	// 是否允许事件有多个监听函数
+	prepend bool
+
+	// 是否线程安全
+	isThreadSafe bool
+	// 线程锁
+	mu sync.Mutex
 }
 
 func NewEventEmitter() *EventEmitter {
@@ -43,16 +52,26 @@ func (this *EventEmitter) init() {
 
 	this.maxListeners = DEFAULT_MAX_LISTENERS
 
+	this.prepend = true
+
 }
 
 // SetMaxListeners
 func (this *EventEmitter) SetMaxListeners(n uint) *EventEmitter {
+	if this.IsThreadSafe() {
+		this.mu.Lock()
+		defer this.mu.Unlock()
+	}
 	this.maxListeners = int(n)
 	return this
 }
 
 // GetMaxListeners
 func (this *EventEmitter) GetMaxListeners() int {
+	if this.IsThreadSafe() {
+		this.mu.Lock()
+		defer this.mu.Unlock()
+	}
 	return this.maxListeners
 }
 
@@ -62,10 +81,16 @@ func (this *EventEmitter) Emit(t string, args ...interface{}) bool {
 }
 
 func (this *EventEmitter) EmitGo(t string, args ...interface{}) bool {
-	return this.emit(t, true, args...)
+	go this.emit(t, true, args...)
+	return true
 }
 
 func (this *EventEmitter) emit(t string, rungo bool, args ...interface{}) bool {
+	if this.IsThreadSafe() {
+		this.mu.Lock()
+		defer this.mu.Unlock()
+	}
+
 	doError := false
 	if t == "error" {
 		doError = true
@@ -95,8 +120,9 @@ func (this *EventEmitter) emit(t string, rungo bool, args ...interface{}) bool {
 				break
 			}
 		}
+		// 如果 在这里 抛出异常，说明没有监听 error 事件，监听后 不会 panic
 		if nil != er {
-			try.Throw(er)
+			try.Throw(try.UnhandledError.NewThrow(er.Error()))
 		} else {
 			err := str.Strval(args[0])
 			try.Throw(try.UnhandledError.NewThrow(err))
@@ -120,19 +146,21 @@ func (this *EventEmitter) emit(t string, rungo bool, args ...interface{}) bool {
 		for i := 0; i < len(handlers); i++ {
 			handler := handlers[i]
 			go func() {
-				defer try.CatchUncaughtException(errorOfCallerHandle(errorHandler))()
-				handler(args...)
+				if handler != nil {
+					defer try.CatchUncaughtException(errorOfCallerHandle(errorHandler))()
+					handler(args...)
+				}
 			}()
-			handler = nil
 		}
 	} else {
 		for i := 0; i < len(handlers); i++ {
 			handler := handlers[i]
 			func() {
-				defer try.CatchUncaughtException(errorOfCallerHandle(errorHandler))()
-				handler(args...)
+				if handler != nil {
+					defer try.CatchUncaughtException(errorOfCallerHandle(errorHandler))()
+					handler(args...)
+				}
 			}()
-			handler = nil
 		}
 	}
 
@@ -146,7 +174,7 @@ func errorOfCallerHandle(errorHandler func(...interface{})) func(try.Throwable) 
 			errorHandler(throwable)
 		} else {
 			fmt.Println(colorstr.Red("The EventEmitter is missing listening for the 'error' event. " +
-				"Use emitter.OnError(func) or emitter.On('error', func) ."))
+				"Use emitter.OnError(func) or emitter.On('error', func)."))
 			try.Throw(throwable)
 		}
 	}
@@ -170,10 +198,14 @@ func (this *EventEmitter) OnRemoveListener(listener func(...interface{})) *Event
 }
 
 func (this *EventEmitter) AddListener(t string, listener func(...interface{})) *EventEmitter {
-	return this.addListener(t, listener, false)
+	return this.addListener(t, listener, this.GetPrepend())
 }
 
 func (this *EventEmitter) addListener(t string, listener func(...interface{}), prepend bool) *EventEmitter {
+	if this.IsThreadSafe() {
+		this.mu.Lock()
+		defer this.mu.Unlock()
+	}
 
 	events := this.events
 	var existing []func(...interface{})
@@ -216,6 +248,11 @@ func (this *EventEmitter) addListener(t string, listener func(...interface{}), p
 }
 
 func (this *EventEmitter) ListenerCount(t string) int {
+	if this.IsThreadSafe() {
+		this.mu.Lock()
+		defer this.mu.Unlock()
+	}
+
 	events := this.events
 	if nil != events {
 		evlistener, ok := events[t]
@@ -252,6 +289,10 @@ func (this *EventEmitter) onceWrap(t string, listener func(...interface{})) func
 
 // 移除事件
 func (this *EventEmitter) RemoveListener(t string) *EventEmitter {
+	if this.IsThreadSafe() {
+		this.mu.Lock()
+		defer this.mu.Unlock()
+	}
 
 	events := this.events
 
@@ -276,4 +317,52 @@ func (this *EventEmitter) RemoveListener(t string) *EventEmitter {
 	}
 
 	return this
+}
+
+func (this *EventEmitter) SetPrepend(prepend bool) {
+	if this.IsThreadSafe() {
+		this.mu.Lock()
+		defer this.mu.Unlock()
+	}
+
+	this.prepend = prepend
+}
+
+func (this *EventEmitter) GetPrepend() bool {
+	if this.IsThreadSafe() {
+		this.mu.Lock()
+		defer this.mu.Unlock()
+	}
+
+	return this.prepend
+}
+
+func (this *EventEmitter) EnableThreadSafe() {
+	this.isThreadSafe = true
+}
+
+func (this *EventEmitter) DisableThreadSafe() {
+	this.isThreadSafe = false
+}
+
+func (this *EventEmitter) IsThreadSafe() bool {
+	return this.isThreadSafe
+}
+
+// 销毁
+func (this *EventEmitter) Destory() {
+	go func() {
+		this.eventsCount = 0
+		this.maxListeners = 0
+		this.prepend = false
+		if nil != this.events {
+			for k, v := range this.events {
+				for i := 0; i < len(v); i++ {
+					v[i] = nil
+				}
+				delete(this.events, k)
+			}
+			this.events = nil
+		}
+	}()
 }

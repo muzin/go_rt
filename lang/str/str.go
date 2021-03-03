@@ -3,7 +3,74 @@ package str
 import (
 	"encoding/json"
 	"strconv"
+	"strings"
+	"unicode"
 )
+
+// 判断字符串是否不是空白
+//
+// @return bool
+func IsNotBlank(str string) bool {
+	return !IsBlank(str)
+}
+
+// 判断字符串是否是空白
+//
+// @return bool
+func IsBlank(str string) bool {
+
+	var strLen = len(str)
+	if strLen != 0 {
+		for _, r := range str {
+			if !unicode.IsSpace(r) {
+				return false
+			}
+		}
+		return true
+	} else {
+		return true
+	}
+}
+
+// 判断字符串是否是空
+//
+// @return bool
+func IsEmpty(str string) bool {
+	return len(str) == 0
+}
+
+// 判断字符串是否不是空
+//
+// @return bool
+func IsNotEmpty(str string) bool {
+	return !IsEmpty(str)
+}
+
+// 去除字符串两边空格
+//
+// @return bool
+func Trim(str string) string {
+	var trim = strings.TrimSpace(str)
+	return trim
+}
+
+// 判断 字符串 是否是以 substr 开头
+func StartsWith(s string, substr string) bool {
+	if strings.Index(s, substr) == 0 {
+		return true
+	} else {
+		return false
+	}
+}
+
+// 判断 字符串 是否是以 substr 结尾
+func EndsWith(s string, substr string) bool {
+	if strings.Index(s, substr) == len(s)-len(substr) {
+		return true
+	} else {
+		return false
+	}
+}
 
 // Strval 获取变量的字符串值
 // 浮点型 3.0将会转换成字符串3, "3"
