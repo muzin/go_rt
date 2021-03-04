@@ -7,9 +7,11 @@ import (
 )
 
 var timeoutTaskStatusMap = make(map[int]bool)
-var intervalTaskStatusMap = make(map[int]bool)
 
-func SetTimeout(cb func(), t int) int {
+// SetTimeout
+//	@param cb function
+//	@param t ms
+func SetTimeout(cb func(), ms int) int {
 	id := time.Now().Nanosecond()
 	timeoutTaskStatusMap[id] = true
 
@@ -18,7 +20,7 @@ func SetTimeout(cb func(), t int) int {
 			fmt.Printf("SetTimeout Uncaught: %v", throwable)
 		})
 
-		time.Sleep(time.Duration(t) * time.Millisecond)
+		time.Sleep(time.Duration(ms) * time.Millisecond)
 
 		status, statusOk := timeoutTaskStatusMap[id]
 
@@ -38,44 +40,5 @@ func ClearTimeout(id int) {
 	_, statusOk := timeoutTaskStatusMap[id]
 	if statusOk {
 		timeoutTaskStatusMap[id] = false
-	}
-}
-
-func SetInterval(cb func(), t int) int {
-	id := time.Now().Nanosecond()
-	intervalTaskStatusMap[id] = true
-	go func() {
-		defer try.CatchUncaughtException(func(throwable try.Throwable) {
-			fmt.Printf("SetInterval Uncaught: %v", throwable)
-		})
-
-		for {
-			status, statusOk := intervalTaskStatusMap[id]
-			if statusOk && status {
-				time.Sleep(time.Duration(t) * time.Millisecond)
-				if statusOk {
-					if status {
-						cb()
-					} else {
-						delete(intervalTaskStatusMap, id)
-						break
-					}
-				} else {
-					delete(intervalTaskStatusMap, id)
-					break
-				}
-			} else {
-				delete(intervalTaskStatusMap, id)
-				break
-			}
-		}
-	}()
-	return id
-}
-
-func ClearInterval(id int) {
-	_, statusOk := intervalTaskStatusMap[id]
-	if statusOk {
-		intervalTaskStatusMap[id] = false
 	}
 }
