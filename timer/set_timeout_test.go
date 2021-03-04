@@ -1,4 +1,4 @@
-package interval
+package timer
 
 import (
 	"sync"
@@ -6,6 +6,7 @@ import (
 )
 
 func TestSetTimeout(t *testing.T) {
+
 	t.Run("Test 设置定时器", func(t *testing.T) {
 
 		var wg sync.WaitGroup
