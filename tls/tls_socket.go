@@ -11,7 +11,7 @@ import (
 type TLSSocket struct {
 	rt_net.TCPSocket
 
-	tls.Config
+	config *tls.Config
 }
 
 func NewTLSSocket() *TLSSocket {
@@ -35,7 +35,7 @@ func (this *TLSSocket) Connect(args ...interface{}) {
 		this.SetHost(args[1].(string))
 	}
 	if len(args) >= 3 {
-		this.Config = args[2].(tls.Config)
+		this.config = args[2].(*tls.Config)
 	}
 
 	if this.Conn != nil {
@@ -47,7 +47,7 @@ func (this *TLSSocket) Connect(args ...interface{}) {
 	network := "tcp"
 	address := this.GetHost() + ":" + strconv.Itoa(this.GetPort())
 
-	conn, err := tls.Dial(network, address, &this.Config)
+	conn, err := tls.Dial(network, address, this.config)
 	if err != nil {
 		try.Throw(rt_net.SocketConnectException.NewThrow(err.Error()))
 	}
@@ -61,7 +61,7 @@ func (this *TLSSocket) Connect(args ...interface{}) {
 func (this *TLSSocket) Reconnect() {
 	this.TCPSocket.Init()
 	this.Init()
-	this.TCPSocket.Connect(this.GetPort(), this.GetHost(), this.Config)
+	this.TCPSocket.Connect(this.GetPort(), this.GetHost(), this.config)
 }
 
 func (this *TLSSocket) Destroy() {
@@ -71,7 +71,7 @@ func (this *TLSSocket) Destroy() {
 }
 
 // connect(port [, host [, options]])
-func ConnectTLS(port int, host string, options tls.Config) rt_net.Socket {
+func ConnectTLS(port int, host string, options *tls.Config) rt_net.Socket {
 	socket := NewTLSSocket()
 	socket.Connect(port, host, options)
 	return socket
