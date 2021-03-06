@@ -168,3 +168,9 @@ func (this *HashMap) rebuildMap() {
 	this.rebuilding = false
 
 }
+
+func (this *HashMap) Destroy() {
+	go func() {
+		this.table = nil
+	}()
+}

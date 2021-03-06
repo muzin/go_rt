@@ -2,42 +2,45 @@ package timer
 
 import (
 	"fmt"
+	"github.com/muzin/go_rt/collection/hash_map"
 	"github.com/muzin/go_rt/try"
 	"time"
 )
 
-var timeoutTaskStatusMap = make(map[int64]bool)
+//var timeoutTaskStatusMap = make(map[int64]bool)
+var timeoutTaskStatusMap = *hash_map.NewHashMap() // map[int64]bool
 
 // SetTimeout
 //	@param cb function
 //	@param t ms
 func SetTimeout(cb func(), ms int) int64 {
 	id := time.Now().UnixNano()
-	timeoutTaskStatusMap[id] = true
+	timeoutTaskStatusMap.Put(id, true)
 
 	go func() {
 		defer try.CatchUncaughtException(func(throwable try.Throwable) {
 			fmt.Printf("SetTimeout Uncaught: %v", throwable)
-			delete(timeoutTaskStatusMap, id)
+			timeoutTaskStatusMap.Remove(id)
 		})
 
 		time.Sleep(time.Duration(ms) * time.Millisecond)
 
-		status, statusOk := timeoutTaskStatusMap[id]
+		statusOk := timeoutTaskStatusMap.ContainsKey(id)
+		status := timeoutTaskStatusMap.Get(id).(bool)
 
 		if statusOk && status {
 			cb()
 		}
 
-		delete(timeoutTaskStatusMap, id)
+		timeoutTaskStatusMap.Remove(id)
 	}()
 
 	return id
 }
 
 func ClearTimeout(id int64) {
-	_, statusOk := timeoutTaskStatusMap[id]
+	statusOk := timeoutTaskStatusMap.ContainsKey(id)
 	if statusOk {
-		timeoutTaskStatusMap[id] = false
+		timeoutTaskStatusMap.Put(id, false)
 	}
 }
