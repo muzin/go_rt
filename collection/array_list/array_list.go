@@ -1,7 +1,9 @@
 package array_list
 
 import (
+	"github.com/muzin/go_rt/lang/err"
 	"github.com/muzin/go_rt/system"
+	"github.com/muzin/go_rt/try"
 )
 
 const (
@@ -17,11 +19,11 @@ type ArrayList struct {
 	capacityIncrement int
 }
 
-func NewVector() *ArrayList {
-	return NewInstanceOfVector(10, 0)
+func NewArrayList() *ArrayList {
+	return NewInstanceOfArrayList(10, 0)
 }
 
-func NewInstanceOfVector(initialCapacity int, capacityIncrement int) *ArrayList {
+func NewInstanceOfArrayList(initialCapacity int, capacityIncrement int) *ArrayList {
 	return &ArrayList{
 		elementData:       make([]interface{}, initialCapacity),
 		capacityIncrement: capacityIncrement,
@@ -51,7 +53,7 @@ func (this *ArrayList) newCapacity(minCapacity int) int {
 
 	if newCapacity-minCapacity <= 0 {
 		if minCapacity < 0 { // overflow
-			panic("OutOfMemoryError")
+			try.Throw(err.OutOfMemoryError.NewThrow(""))
 		} else {
 			return minCapacity
 		}
@@ -68,7 +70,7 @@ func (this *ArrayList) newCapacity(minCapacity int) int {
 
 func (this *ArrayList) hugeCapacity(minCapacity int) int {
 	if minCapacity < 0 { // overflow
-		panic("OutOfMemoryError()")
+		try.Throw(err.OutOfMemoryError.NewThrow(""))
 	}
 	var ret = 0
 	if minCapacity > MAX_ARRAY_SIZE {
@@ -135,7 +137,6 @@ func (this *ArrayList) LastIndexOfWithIndex(o interface{}, index int) int {
 }
 
 func (this *ArrayList) addToElementData(o *interface{}, elementData *[]interface{}, s int) {
-	//fmt.Printf("addToElementData o p: %v %v\n", o, &o)
 
 	if s == len(*elementData) {
 		this.elementData = *(this.grow())
@@ -144,13 +145,12 @@ func (this *ArrayList) addToElementData(o *interface{}, elementData *[]interface
 		(*elementData)[s] = o
 	}
 
-	//fmt.Printf("elementData o p: %v %v %v\n", elementData, &this.elementData, &elementData)
 	this.elementCount = s + 1
 }
 
 //  Appends the specified element to the end of this ArrayList.
 func (this *ArrayList) Add(o *interface{}) bool {
-	//fmt.Printf("add o p: %v %v\n", o, &o)
+
 	this.addToElementData(o, &this.elementData, this.elementCount)
 	return true
 }
@@ -170,6 +170,7 @@ func (this *ArrayList) removeElementAt(index int) {
 		panic("ArrayIndexOutOfBoundsException " + string(index) + ">=" + string(this.elementCount))
 	} else if index < 0 {
 		panic("ArrayIndexOutOfBoundsException " + string(index))
+
 	}
 
 	var j = this.elementCount - index - 1
@@ -186,7 +187,7 @@ func (this *ArrayList) Remove(index int) (val *interface{}) {
 	}
 
 	if index >= this.elementCount || index < 0 {
-		panic("ArrayIndexOutOfBoundsException size: " + string(this.elementCount) + " index: " + string(index))
+		try.Throw(err.ArrayIndexOutOfBoundsException.NewThrow("size: " + string(this.elementCount) + " index: " + string(index)))
 	}
 
 	oldValue := this.elementData[index]
@@ -219,28 +220,28 @@ func (this *ArrayList) Clear() {
 
 func (this *ArrayList) FirstElement() *interface{} {
 	if this.elementCount == 0 {
-		panic("NoSuchElementException")
+		try.Throw(err.NoSuchElementException.NewThrow(""))
 	}
 	return (this.elementData[0]).(*interface{})
 }
 
 func (this *ArrayList) LastElement() *interface{} {
 	if this.elementCount == 0 {
-		panic("NoSuchElementException")
+		try.Throw(err.NoSuchElementException.NewThrow(""))
 	}
 	return (this.elementData[this.elementCount-1]).(*interface{})
 }
 
 func (this *ArrayList) Get(index int) *interface{} {
 	if index >= this.elementCount || index < 0 {
-		panic("ArrayIndexOutOfBoundsException size: " + string(this.elementCount) + " index: " + string(index))
+		try.Throw(err.ArrayIndexOutOfBoundsException.NewThrow("size: " + string(this.elementCount) + " index: " + string(index)))
 	}
 	return (this.elementData[index]).(*interface{})
 }
 
 func (this *ArrayList) Set(index int, element interface{}) *interface{} {
 	if index >= this.elementCount || index < 0 {
-		panic("ArrayIndexOutOfBoundsException size: " + string(this.elementCount) + " index: " + string(index))
+		try.Throw(err.ArrayIndexOutOfBoundsException.NewThrow("size: " + string(this.elementCount) + " index: " + string(index)))
 	}
 
 	oldValue := this.elementData[index]

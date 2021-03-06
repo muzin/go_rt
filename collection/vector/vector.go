@@ -1,7 +1,9 @@
 package vector
 
 import (
+	"github.com/muzin/go_rt/lang/err"
 	"github.com/muzin/go_rt/system"
+	"github.com/muzin/go_rt/try"
 	"sync"
 )
 
@@ -54,7 +56,7 @@ func (this *Vector) newCapacity(minCapacity int) int {
 
 	if newCapacity-minCapacity <= 0 {
 		if minCapacity < 0 { // overflow
-			panic("OutOfMemoryError")
+			try.Throw(err.OutOfMemoryError.NewThrow(""))
 		} else {
 			return minCapacity
 		}
@@ -71,7 +73,7 @@ func (this *Vector) newCapacity(minCapacity int) int {
 
 func (this *Vector) hugeCapacity(minCapacity int) int {
 	if minCapacity < 0 { // overflow
-		panic("OutOfMemoryError()")
+		try.Throw(err.OutOfMemoryError.NewThrow(""))
 	}
 	var ret = 0
 	if minCapacity > MAX_ARRAY_SIZE {
@@ -193,9 +195,9 @@ func (this *Vector) removeElementAt(index int) {
 	defer this.mu.Unlock()
 
 	if index >= this.elementCount {
-		panic("ArrayIndexOutOfBoundsException " + string(index) + ">=" + string(this.elementCount))
+		try.Throw(err.ArrayIndexOutOfBoundsException.NewThrow(string(index) + ">=" + string(this.elementCount)))
 	} else if index < 0 {
-		panic("ArrayIndexOutOfBoundsException " + string(index))
+		try.Throw(err.ArrayIndexOutOfBoundsException.NewThrow(string(index)))
 	}
 
 	var j = this.elementCount - index - 1
@@ -215,7 +217,7 @@ func (this *Vector) Remove(index int) (val *interface{}) {
 	}
 
 	if index >= this.elementCount || index < 0 {
-		panic("ArrayIndexOutOfBoundsException size: " + string(this.elementCount) + " index: " + string(index))
+		try.Throw(err.ArrayIndexOutOfBoundsException.NewThrow("size: " + string(this.elementCount) + " index: " + string(index)))
 	}
 
 	oldValue := this.elementData[index]
@@ -254,7 +256,7 @@ func (this *Vector) FirstElement() *interface{} {
 	defer this.mu.Unlock()
 
 	if this.elementCount == 0 {
-		panic("NoSuchElementException")
+		try.Throw(err.NoSuchElementException.NewThrow(""))
 	}
 	return (this.elementData[0]).(*interface{})
 }
@@ -264,7 +266,7 @@ func (this *Vector) LastElement() *interface{} {
 	defer this.mu.Unlock()
 
 	if this.elementCount == 0 {
-		panic("NoSuchElementException")
+		try.Throw(err.NoSuchElementException.NewThrow(""))
 	}
 	return (this.elementData[this.elementCount-1]).(*interface{})
 }
@@ -274,7 +276,7 @@ func (this *Vector) Get(index int) *interface{} {
 	defer this.mu.Unlock()
 
 	if index >= this.elementCount || index < 0 {
-		panic("ArrayIndexOutOfBoundsException size: " + string(this.elementCount) + " index: " + string(index))
+		try.Throw(err.ArrayIndexOutOfBoundsException.NewThrow("size: " + string(this.elementCount) + " index: " + string(index)))
 	}
 	return (this.elementData[index]).(*interface{})
 }
@@ -284,7 +286,7 @@ func (this *Vector) Set(index int, element interface{}) *interface{} {
 	defer this.mu.Unlock()
 
 	if index >= this.elementCount || index < 0 {
-		panic("ArrayIndexOutOfBoundsException size: " + string(this.elementCount) + " index: " + string(index))
+		try.Throw(err.ArrayIndexOutOfBoundsException.NewThrow("size: " + string(this.elementCount) + " index: " + string(index)))
 	}
 
 	oldValue := this.elementData[index]
