@@ -97,8 +97,6 @@ func (this *TCPSocket) Init() {
 	// 在 SocketWaitGroup 中标记 进行中
 	GetSocketWaitGroup().Add(1)
 
-	this.On("connect", func(...interface{}) {})
-
 	// 默认 监听 一个 空 error 事件
 	this.OnError(func(...interface{}) {})
 
@@ -286,10 +284,6 @@ func (this *TCPSocket) readConsumer() {
 			break
 		}
 	}
-}
-
-func (this *TCPSocket) OnConnect(listener func(...interface{})) {
-	this.Once("connect", listener)
 }
 
 func (this *TCPSocket) OnData(listener func(...interface{})) {

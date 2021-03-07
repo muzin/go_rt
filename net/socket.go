@@ -15,8 +15,6 @@ type Socket interface {
 
 	Write(args ...interface{}) int
 
-	OnConnect(listener func(...interface{}))
-
 	OnData(listener func(...interface{}))
 
 	OnError(listener func(...interface{}))
@@ -30,6 +28,10 @@ type Socket interface {
 	On(t string, listener func(...interface{}))
 
 	Once(t string, listener func(...interface{}))
+
+	Emit(t string, args ...interface{}) bool
+
+	EmitGo(t string, args ...interface{}) bool
 
 	LocalAddr() net.Addr
 
