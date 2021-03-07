@@ -134,12 +134,14 @@ func (this *TCPSocket) Connect(args ...interface{}) {
 	this.Emit("connect", this)
 }
 
+// 重连
 func (this *TCPSocket) Reconnect() {
 	//this.SetCloseStatus()
 	this.Init()
 	this.Connect(this.port, this.host)
 }
 
+// 连接处理
 func (this *TCPSocket) ConnectHandle() {
 
 	buf := make([]byte, this.GetBufferSize())
