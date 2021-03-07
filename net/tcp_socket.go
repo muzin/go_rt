@@ -3,10 +3,10 @@ package net
 import (
 	"github.com/muzin/go_rt/events"
 	"github.com/muzin/go_rt/lang/str"
-	"github.com/muzin/go_rt/system"
 	"github.com/muzin/go_rt/try"
 	"net"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -57,6 +57,16 @@ type TCPSocket struct {
 
 	// 暂停，挂起
 	suspend bool
+
+	// 写 通道
+	writeChannel chan []byte
+	// 写 完毕
+	writeChannelFinished bool
+
+	// 读 通道
+	readChannel chan []byte
+	// 读 完毕
+	readChannelFinished bool
 }
 
 func NewTCPSocket() *TCPSocket {
@@ -80,6 +90,10 @@ func (this *TCPSocket) Init() {
 		this.bufferSize = 4096
 	}
 
+	// 读写 缓冲 通道
+	this.readChannel = make(chan []byte, 100)
+	this.writeChannel = make(chan []byte, 100)
+
 	// 在 SocketWaitGroup 中标记 进行中
 	GetSocketWaitGroup().Add(1)
 
@@ -89,18 +103,40 @@ func (this *TCPSocket) Init() {
 	this.OnError(func(...interface{}) {})
 
 	// 默认关闭事件
-	this.OnClose(func(...interface{}) {
+	this.On("close", func(...interface{}) {
 		this.SetCloseStatus()
+
+		var isEnded sync.WaitGroup
+		isEnded.Add(2)
+
+		this.Once("writeChannelFinished", func(...interface{}) {
+			isEnded.Done()
+		})
+		this.Once("readChannelFinished", func(...interface{}) {
+			isEnded.Done()
+		})
+
+		// 关闭 读写通道
+		close(this.writeChannel)
+		close(this.readChannel)
+
+		isEnded.Wait()
+
 		// 发送 结束事件
 		this.EmitGo("_end")
 	})
 
 	// 默认_结束事件
 	this.Once("_end", func(...interface{}) {
+
 		this.Emit("end")
 		// 结束后，从等待组中 标记为 done
 		GetSocketWaitGroup().Done()
 	})
+
+	// 读写数据 缓冲区 数据处理
+	go this.writeConsumer()
+	go this.readConsumer()
 
 }
 
@@ -164,9 +200,9 @@ func (this *TCPSocket) ConnectHandle() {
 					this.suspend = true   // 暂停
 					this.destroyed = true // 销毁
 					if str.EndsWith(err.Error(), "use of closed network connection") {
-						this.EmitGo("close", true) // 主动关闭
+						this.Emit("close", true) // 主动关闭
 					} else if err.Error() == "EOF" { // 结束
-						this.EmitGo("close", false) // 被动关闭
+						this.Emit("close", false) // 被动关闭
 					} else if str.StartsWith(err.Error(), "read ") &&
 						str.StartsWith(err.Error(), " i/o timeout") {
 						this.Emit("timeout", "read")
@@ -177,7 +213,9 @@ func (this *TCPSocket) ConnectHandle() {
 						try.Throw(SocketReadException.NewThrow(err.Error()))
 					}
 				} else {
-					this.Emit("data", buf[0:cnt])
+					//this.Emit("data", buf[0:cnt])
+					// 将 数据 写入 读缓冲区
+					this.readChannel <- buf[0:cnt]
 				}
 			}()
 		} else {
@@ -190,37 +228,63 @@ func (this *TCPSocket) ConnectHandle() {
 	}
 }
 
-// write(data []byte, len int, index int)
 func (this *TCPSocket) Write(args ...interface{}) int {
+	var data []byte
+	var length int
+	var index int
+	if len(args) >= 1 {
+		data = args[0].([]byte)
+		length = len(data)
+	}
+	if len(args) >= 2 {
+		length = args[1].(int)
+		index = 0
+	}
+	if len(args) >= 3 {
+		index = args[2].(int)
+	}
+
+	this.writeChannel <- data[index:(index + length)]
+
+	data = nil
+
+	return length
+}
+
+// write(data []byte, len int, index int)
+func (this *TCPSocket) write(data []byte) int {
 	if this.Conn != nil {
-		var data []byte
-		var length int
-		var index int
-		if len(args) >= 1 {
-			data = args[0].([]byte)
-
-			this.Conn.Write(data)
-			return len(data)
-		}
-		if len(args) >= 2 {
-			length = args[1].(int)
-			index = 0
-		}
-		if len(args) >= 3 {
-			index = args[2].(int)
-		}
-
-		newbytes := make([]byte, length)
-		system.ByteArrayCopy(&data, index, &newbytes, 0, length)
 		if this.timeout > 0 {
 			timeoutDuration := time.Duration(this.timeout) * time.Millisecond
 			this.Conn.SetWriteDeadline(time.Now().Add(timeoutDuration))
 		}
-		this.Conn.Write(newbytes)
-		return length
-
+		this.Conn.Write(data)
+		return len(data)
 	} else {
 		return 0
+	}
+}
+
+func (this *TCPSocket) writeConsumer() {
+	for {
+		if data, isOpen := <-this.writeChannel; isOpen {
+			this.write(data)
+			data = nil
+		} else {
+			this.EmitGo("writeChannelFinished")
+			break
+		}
+	}
+}
+
+func (this *TCPSocket) readConsumer() {
+	for {
+		if data, isOpen := <-this.readChannel; isOpen {
+			this.Emit("data", data)
+		} else {
+			this.EmitGo("readChannelFinished")
+			break
+		}
 	}
 }
 
@@ -366,6 +430,8 @@ func (this *TCPSocket) Destroy() {
 	go func() {
 		this.EventEmitter.Destory()
 		this.Conn = nil
+		this.writeChannel = nil
+		this.readChannel = nil
 	}()
 }
 

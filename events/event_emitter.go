@@ -23,17 +23,14 @@ const (
 type EventEmitter struct {
 	eventsCount int
 
-	events map[string][]func(...interface{})
+	//events map[string][]func(...interface{})
+
+	events *sync.Map
 
 	maxListeners int
 
 	// 是否允许事件有多个监听函数
 	prepend bool
-
-	// 是否线程安全
-	isThreadSafe bool
-	// 线程锁
-	mu sync.Mutex
 }
 
 func NewEventEmitter() *EventEmitter {
@@ -44,34 +41,23 @@ func NewEventEmitter() *EventEmitter {
 
 // init
 func (this *EventEmitter) init() {
-
 	if nil == this.events {
-		this.events = make(map[string][]func(...interface{}))
+		//this.events = make(map[string][]func(...interface{}))
+		this.events = &sync.Map{}
 		this.eventsCount = 0
 	}
-
 	this.maxListeners = DEFAULT_MAX_LISTENERS
-
 	this.prepend = true
-
 }
 
 // SetMaxListeners
 func (this *EventEmitter) SetMaxListeners(n uint) *EventEmitter {
-	if this.IsThreadSafe() {
-		this.mu.Lock()
-		defer this.mu.Unlock()
-	}
 	this.maxListeners = int(n)
 	return this
 }
 
 // GetMaxListeners
 func (this *EventEmitter) GetMaxListeners() int {
-	if this.IsThreadSafe() {
-		this.mu.Lock()
-		defer this.mu.Unlock()
-	}
 	return this.maxListeners
 }
 
@@ -86,10 +72,6 @@ func (this *EventEmitter) EmitGo(t string, args ...interface{}) bool {
 }
 
 func (this *EventEmitter) emit(t string, rungo bool, args ...interface{}) bool {
-	if this.IsThreadSafe() {
-		this.mu.Lock()
-		defer this.mu.Unlock()
-	}
 
 	doError := false
 	if t == "error" {
@@ -99,7 +81,8 @@ func (this *EventEmitter) emit(t string, rungo bool, args ...interface{}) bool {
 	events := this.events
 
 	if nil != events {
-		if doError == true && nil == events["error"] {
+		errorHandles, _ := events.Load("error")
+		if doError == true && nil == errorHandles {
 			doError = true
 		} else {
 			doError = false
@@ -129,14 +112,25 @@ func (this *EventEmitter) emit(t string, rungo bool, args ...interface{}) bool {
 		}
 	}
 
-	handlers := events[t]
+	handlersInterface, _ := events.Load(t)
+	var handlers []func(...interface{})
+	if nil != handlersInterface {
+		handlers = handlersInterface.([]func(...interface{}))
+	}
+
 	if nil == handlers {
 		return false
 	}
 
-	// 获取 异常处理函数
-	errorHandlers, errOk := events["error"]
 	var errorHandler func(...interface{})
+
+	// 获取 异常处理函数
+	errorHandlersInterface, errOk := events.Load("error")
+	var errorHandlers []func(...interface{})
+	if nil != errorHandlersInterface {
+		errorHandlers = errorHandlersInterface.([]func(...interface{}))
+	}
+
 	if errOk && len(errorHandlers) > 0 {
 		errorHandler = errorHandlers[0]
 	}
@@ -202,30 +196,32 @@ func (this *EventEmitter) AddListener(t string, listener func(...interface{})) *
 }
 
 func (this *EventEmitter) addListener(t string, listener func(...interface{}), prepend bool) *EventEmitter {
-	if this.IsThreadSafe() {
-		this.mu.Lock()
-		defer this.mu.Unlock()
-	}
 
-	events := this.events
 	var existing []func(...interface{})
 
+	events := this.events
+
 	if nil == events {
-		this.events = make(map[string][]func(...interface{}))
+		//this.events = make(map[string][]func(...interface{}))
+		this.events = &sync.Map{}
 		events = this.events
 		this.eventsCount = 0
 	} else {
-		_, newOk := events[EVENT_EMITTER_NEW_LISTENER_NAME]
+		_, newOk := events.Load(EVENT_EMITTER_NEW_LISTENER_NAME)
 		if newOk {
-			this.Emit(EVENT_EMITTER_NEW_LISTENER_NAME, t, listener)
+			this.EmitGo(EVENT_EMITTER_NEW_LISTENER_NAME, t, listener)
 			events = this.events
 		}
-		existing = events[t]
+		existingInterface, _ := events.Load(t)
+		if nil != existingInterface {
+			existing = existingInterface.([]func(...interface{}))
+		}
 	}
 
 	if nil == existing {
-		events[t] = make([]func(...interface{}), 1)
-		events[t][0] = listener
+		handlers := make([]func(...interface{}), 1)
+		handlers[0] = listener
+		this.events.Store(t, handlers)
 		this.eventsCount += 1
 	} else {
 		if prepend {
@@ -233,7 +229,7 @@ func (this *EventEmitter) addListener(t string, listener func(...interface{}), p
 		} else {
 			existing = append(make([]func(...interface{}), 0), listener)
 		}
-		this.events[t] = existing
+		this.events.Store(t, existing)
 	}
 
 	m := this.GetMaxListeners()
@@ -244,19 +240,21 @@ func (this *EventEmitter) addListener(t string, listener func(...interface{}), p
 			len(existing), t)))
 	}
 
+	events = nil
+
 	return this
 }
 
 func (this *EventEmitter) ListenerCount(t string) int {
-	if this.IsThreadSafe() {
-		this.mu.Lock()
-		defer this.mu.Unlock()
-	}
 
 	events := this.events
+
 	if nil != events {
-		evlistener, ok := events[t]
+
+		evlistenerInterface, ok := events.Load(t)
+
 		if ok {
+			evlistener := evlistenerInterface.([]func(...interface{}))
 			return len(evlistener)
 		} else {
 			return 0
@@ -268,9 +266,10 @@ func (this *EventEmitter) ListenerCount(t string) int {
 func (this *EventEmitter) EventNames() []string {
 	strings := make([]string, 0)
 	if this.eventsCount > 0 {
-		for name, _ := range this.events {
-			strings = append(strings, name)
-		}
+		this.events.Range(func(key interface{}, value interface{}) bool {
+			strings = append(strings, key.(string))
+			return true
+		})
 	}
 	return strings
 }
@@ -289,10 +288,6 @@ func (this *EventEmitter) onceWrap(t string, listener func(...interface{})) func
 
 // 移除事件
 func (this *EventEmitter) RemoveListener(t string) *EventEmitter {
-	if this.IsThreadSafe() {
-		this.mu.Lock()
-		defer this.mu.Unlock()
-	}
 
 	events := this.events
 
@@ -300,18 +295,20 @@ func (this *EventEmitter) RemoveListener(t string) *EventEmitter {
 		return this
 	}
 
-	handlers, ok := events[t]
+	handlers, ok := events.Load(t)
 
 	if ok {
 		if (this.eventsCount - 1) == 0 {
-			this.events = make(map[string][]func(...interface{}))
+			//this.events = make(map[string][]func(...interface{}))
+			this.events = &sync.Map{}
 			this.eventsCount = 0
 		} else {
-			delete(this.events, t)
+			//delete(this.events, t)
+			this.events.Delete(t)
 			this.eventsCount--
-			_, rmOk := events[EVENT_EMITTER_REMOVE_LISTENER_NAME]
+			_, rmOk := events.Load(EVENT_EMITTER_REMOVE_LISTENER_NAME)
 			if rmOk {
-				this.Emit(EVENT_EMITTER_REMOVE_LISTENER_NAME, t, handlers)
+				this.EmitGo(EVENT_EMITTER_REMOVE_LISTENER_NAME, t, handlers)
 			}
 		}
 	}
@@ -320,47 +317,38 @@ func (this *EventEmitter) RemoveListener(t string) *EventEmitter {
 }
 
 func (this *EventEmitter) SetPrepend(prepend bool) {
-	if this.IsThreadSafe() {
-		this.mu.Lock()
-		defer this.mu.Unlock()
-	}
-
 	this.prepend = prepend
 }
 
 func (this *EventEmitter) GetPrepend() bool {
-	if this.IsThreadSafe() {
-		this.mu.Lock()
-		defer this.mu.Unlock()
-	}
-
 	return this.prepend
 }
 
-func (this *EventEmitter) EnableThreadSafe() {
-	this.isThreadSafe = true
-}
-
-func (this *EventEmitter) DisableThreadSafe() {
-	this.isThreadSafe = false
-}
-
-func (this *EventEmitter) IsThreadSafe() bool {
-	return this.isThreadSafe
-}
+//
+//func (this *EventEmitter) EnableThreadSafe() {
+//	this.isThreadSafe = true
+//}
+//
+//func (this *EventEmitter) DisableThreadSafe() {
+//	this.isThreadSafe = false
+//}
+//
+//func (this *EventEmitter) IsThreadSafe() bool {
+//	return this.isThreadSafe
+//}
 
 // 销毁
 func (this *EventEmitter) Destory() {
 	go func() {
+
 		this.eventsCount = 0
 		this.maxListeners = 0
 		this.prepend = false
 		if nil != this.events {
-			for k, v := range this.events {
-				for i := 0; i < len(v); i++ {
-					v[i] = nil
-				}
-				delete(this.events, k)
+			eventNames := this.EventNames()
+			for i := 0; i < len(eventNames); i++ {
+				eventName := eventNames[i]
+				this.events.Delete(eventName)
 			}
 			this.events = nil
 		}
