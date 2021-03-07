@@ -70,20 +70,19 @@ type TCPSocket struct {
 }
 
 func NewTCPSocket() *TCPSocket {
-	s := &TCPSocket{
-		EventEmitter: *events.NewEventEmitter(),
-	}
+	s := &TCPSocket{}
 	s.Init()
 	return s
 }
 
 func (this *TCPSocket) Init() {
 
-	if !this.inited {
-		this.inited = true
-	} else {
-		return
-	}
+	//if !this.inited {
+	//	this.inited = true
+	//} else {
+	//	return
+	//}
+	this.EventEmitter = *events.NewEventEmitter()
 
 	// 设置默认 读缓冲区尺寸
 	if this.bufferSize <= 0 {
@@ -93,9 +92,6 @@ func (this *TCPSocket) Init() {
 	// 读写 缓冲 通道
 	this.readChannel = make(chan []byte, 100)
 	this.writeChannel = make(chan []byte, 100)
-
-	// 在 SocketWaitGroup 中标记 进行中
-	GetSocketWaitGroup().Add(1)
 
 	// 默认 监听 一个 空 error 事件
 	this.OnError(func(...interface{}) {})
@@ -160,6 +156,9 @@ func (this *TCPSocket) Connect(args ...interface{}) {
 	if err != nil {
 		try.Throw(SocketConnectException.NewThrow(err.Error()))
 	}
+
+	// 在 SocketWaitGroup 中标记 进行中
+	GetSocketWaitGroup().Add(1)
 
 	this.SetOpenStatus()
 
@@ -421,12 +420,10 @@ func (this *TCPSocket) GetHost() string {
 
 // 销毁
 func (this *TCPSocket) Destroy() {
-	go func() {
-		this.EventEmitter.Destory()
-		this.Conn = nil
-		this.writeChannel = nil
-		this.readChannel = nil
-	}()
+	this.EventEmitter.Destory()
+	this.Conn = nil
+	this.writeChannel = nil
+	this.readChannel = nil
 }
 
 // connect(port [, host])

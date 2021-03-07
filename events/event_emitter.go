@@ -339,18 +339,15 @@ func (this *EventEmitter) GetPrepend() bool {
 
 // 销毁
 func (this *EventEmitter) Destory() {
-	go func() {
-
-		this.eventsCount = 0
-		this.maxListeners = 0
-		this.prepend = false
-		if nil != this.events {
-			eventNames := this.EventNames()
-			for i := 0; i < len(eventNames); i++ {
-				eventName := eventNames[i]
-				this.events.Delete(eventName)
-			}
-			this.events = nil
+	this.eventsCount = 0
+	this.maxListeners = 0
+	this.prepend = false
+	if nil != this.events {
+		eventNames := this.EventNames()
+		for i := 0; i < len(eventNames); i++ {
+			eventName := eventNames[i]
+			this.events.Delete(eventName)
 		}
-	}()
+		this.events = nil
+	}
 }

@@ -65,9 +65,7 @@ func (this *TLSSocket) Reconnect() {
 }
 
 func (this *TLSSocket) Destroy() {
-	go func() {
-		this.TCPSocket.Destory()
-	}()
+	this.TCPSocket.Destory()
 }
 
 // connect(port [, host [, options]])

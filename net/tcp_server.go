@@ -84,9 +84,6 @@ func (this *TCPServer) Init() {
 		return newSocketForServer(conn)
 	})
 
-	// 加入 服务结束等待组中
-	GetSocketWaitGroup().Add(1)
-
 	// 默认 监听 一个 空 error 事件
 	this.OnError(func(...interface{}) {})
 }
@@ -123,6 +120,9 @@ func (this *TCPServer) Listen(args ...interface{}) {
 	if listenErr != nil {
 		try.Throw(ServerListenException.NewThrow(listenErr.Error()))
 	}
+
+	// 加入 服务结束等待组中
+	GetSocketWaitGroup().Add(1)
 
 	go func() {
 		time.Sleep(10 * time.Millisecond)
