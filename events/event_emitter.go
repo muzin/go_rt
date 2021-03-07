@@ -225,7 +225,7 @@ func (this *EventEmitter) addListener(t string, listener func(...interface{}), p
 		this.eventsCount += 1
 	} else {
 		if prepend {
-			existing = append(append(make([]func(...interface{}), 0), listener), existing...)
+			existing = append(append(make([]func(...interface{}), 0), existing...), listener)
 		} else {
 			existing = append(make([]func(...interface{}), 0), listener)
 		}
