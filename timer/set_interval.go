@@ -18,7 +18,7 @@ func SetInterval(cb func() bool, ms int) int64 {
 		defer try.CatchUncaughtException(func(throwable try.Throwable) {
 			fmt.Printf("SetInterval Uncaught: %v", throwable)
 			intervalTaskStatusMap.Remove(id)
-		})
+		})()
 
 		for {
 			statusOk := intervalTaskStatusMap.ContainsKey(id)

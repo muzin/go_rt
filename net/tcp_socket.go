@@ -12,6 +12,7 @@ import (
 
 var SocketConnectException = try.DeclareException("SocketConnectException")
 var SocketReadException = try.DeclareException("SocketReadException")
+var SocketWriteException = try.DeclareException("SocketWriteException")
 var SocketCloseException = try.DeclareException("SocketCloseException")
 
 type TCPSocket struct {
@@ -41,6 +42,9 @@ type TCPSocket struct {
 	// 超时时间 毫秒
 	timeout int
 
+	// 是否关闭
+	closed bool
+
 	// 设置读缓冲区尺寸
 	bufferSize int
 
@@ -60,17 +64,22 @@ type TCPSocket struct {
 
 	// 写 通道
 	writeChannel chan []byte
-	// 写 完毕
+	//写 完毕
 	writeChannelFinished bool
 
 	// 读 通道
 	readChannel chan []byte
 	// 读 完毕
 	readChannelFinished bool
+
+	// 声明 的 处理器， 再重新加载时加载
+	declareHanlders map[string][]func(...interface{})
 }
 
 func NewTCPSocket() *TCPSocket {
-	s := &TCPSocket{}
+	s := &TCPSocket{
+		EventEmitter: *events.NewEventEmitter(),
+	}
 	s.Init()
 	return s
 }
@@ -82,7 +91,16 @@ func (this *TCPSocket) Init() {
 	//} else {
 	//	return
 	//}
-	this.EventEmitter = *events.NewEventEmitter()
+
+	this.connecting = false
+	this.pending = false
+	this.readable = false
+	this.writeable = false
+	this.destroyed = false
+	this.readyState = ""
+	this.inited = false
+	this.suspend = false
+	this.closed = false
 
 	// 设置默认 读缓冲区尺寸
 	if this.bufferSize <= 0 {
@@ -93,28 +111,58 @@ func (this *TCPSocket) Init() {
 	this.readChannel = make(chan []byte, 100)
 	this.writeChannel = make(chan []byte, 100)
 
+	// 如果没有声明过的处理器函数 创建
+	if nil == this.declareHanlders {
+		this.declareHanlders = make(map[string][]func(...interface{}))
+	}
+
+	// 如果有事件， 移除全部监听的事件，重新加载
+	if len(this.EventNames()) > 0 {
+		this.RemoveAllListener()
+	}
+
 	// 默认 监听 一个 空 error 事件
-	this.OnError(func(...interface{}) {})
+	this.On("error", func(...interface{}) {})
+
+	// 监听 内部 超时事件
+	this.Once("_timeout", func(args ...interface{}) {
+		// 当 超时后 关闭 连接
+		// 等待 连接 关闭完成
+		// 发送超时事
+		GetSocketWaitGroup("tls_socket [event]_timeout WaitGroup add 1").Add(1)
+		this.AddAppendListener("end", func(...interface{}) {
+			// 当结束后 调 结束事件
+			this.Emit("timeout", args[0])
+			GetSocketWaitGroup("tls_socket [event]_timeout WaitGroup done 1").Done()
+		})
+		this.Close()
+	})
 
 	// 默认关闭事件
 	this.On("close", func(...interface{}) {
 		this.SetCloseStatus()
 
-		var isEnded sync.WaitGroup
-		isEnded.Add(2)
+		//var wg = rt_sync.NewChanWaitGroup()
+		//wg.Add(2)
+
+		var wg sync.WaitGroup
+
+		wg.Add(2)
 
 		this.Once("writeChannelFinished", func(...interface{}) {
-			isEnded.Done()
+			this.writeChannelFinished = true
+			wg.Done()
 		})
 		this.Once("readChannelFinished", func(...interface{}) {
-			isEnded.Done()
+			this.readChannelFinished = true
+			wg.Done()
 		})
 
 		// 关闭 读写通道
 		close(this.writeChannel)
 		close(this.readChannel)
 
-		isEnded.Wait()
+		wg.Wait()
 
 		// 发送 结束事件
 		this.EmitGo("_end")
@@ -125,8 +173,13 @@ func (this *TCPSocket) Init() {
 
 		this.Emit("end")
 		// 结束后，从等待组中 标记为 done
-		GetSocketWaitGroup().Done()
+		GetSocketWaitGroup("tcp_socket [event]_end WaitGroup done 1").Done()
 	})
+
+	// 如果 之前声明过 声明函数 直接加载
+	if this.declareHanlders != nil && len(this.declareHanlders) > 0 {
+		this.reloadDeclareHandlers()
+	}
 
 	// 读写数据 缓冲区 数据处理
 	go this.writeConsumer()
@@ -143,22 +196,24 @@ func (this *TCPSocket) Connect(args ...interface{}) {
 		this.host = args[1].(string)
 	}
 
-	if this.Conn != nil {
-		return
-	}
+	//if this.Conn != nil {
+	//	return
+	//}
 
 	this.SetOpeningStatus()
 
 	network := "tcp"
 	address := this.host + ":" + strconv.Itoa(this.port)
 
+	// 在 SocketWaitGroup 中标记 进行中
+	GetSocketWaitGroup("tcp_socket Connect() WaitGroup add 1").Add(1)
+
 	conn, err := net.Dial(network, address)
 	if err != nil {
-		try.Throw(SocketConnectException.NewThrow(err.Error()))
+		this.Emit("error", SocketConnectException.NewThrow(err.Error()))
+		this.EmitGo("close", true)
+		return
 	}
-
-	// 在 SocketWaitGroup 中标记 进行中
-	GetSocketWaitGroup().Add(1)
 
 	this.SetOpenStatus()
 
@@ -185,7 +240,10 @@ func (this *TCPSocket) ConnectHandle() {
 				// 捕获异常， 发送error事件
 				defer try.CatchUncaughtException(func(throwable try.Throwable) {
 					this.EmitGo("error", throwable)
-				})
+					// 有错误 关闭 连接
+					//this.Close()
+				})()
+
 				// 如果有超时时间，设置超时时间
 				if this.timeout > 0 {
 					timeoutDuration := time.Duration(this.timeout) * time.Millisecond
@@ -201,11 +259,11 @@ func (this *TCPSocket) ConnectHandle() {
 					} else if err.Error() == "EOF" { // 结束
 						this.Emit("close", false) // 被动关闭
 					} else if str.StartsWith(err.Error(), "read ") &&
-						str.StartsWith(err.Error(), " i/o timeout") {
-						this.Emit("timeout", "read")
+						str.EndsWith(err.Error(), " i/o timeout") {
+						this.Emit("_timeout", "read")
 					} else if str.StartsWith(err.Error(), "write ") &&
-						str.StartsWith(err.Error(), " i/o timeout") {
-						this.Emit("timeout", "write")
+						str.EndsWith(err.Error(), " i/o timeout") {
+						this.Emit("_timeout", "write")
 					} else {
 						try.Throw(SocketReadException.NewThrow(err.Error()))
 					}
@@ -241,7 +299,12 @@ func (this *TCPSocket) Write(args ...interface{}) int {
 		index = args[2].(int)
 	}
 
-	this.writeChannel <- data[index:(index + length)]
+	// 如果 没有 关闭加入到 写缓冲区
+	if !this.closed {
+		this.writeChannel <- data[index:(index + length)]
+	}
+
+	//cnt, err := this.write(data[index:(index + length)])
 
 	data = nil
 
@@ -249,23 +312,44 @@ func (this *TCPSocket) Write(args ...interface{}) int {
 }
 
 // write(data []byte, len int, index int)
-func (this *TCPSocket) write(data []byte) int {
-	if this.Conn != nil {
+func (this *TCPSocket) write(data []byte) (int, error) {
+	if this.Conn != nil && this.suspend == false {
 		if this.timeout > 0 {
 			timeoutDuration := time.Duration(this.timeout) * time.Millisecond
 			this.Conn.SetWriteDeadline(time.Now().Add(timeoutDuration))
 		}
-		this.Conn.Write(data)
-		return len(data)
+		cnt, err := this.Conn.Write(data)
+		if nil != err {
+			this.Emit("error", SocketWriteException.NewThrow(err.Error()))
+			// 有错误 关闭 连接
+			this.Close()
+		}
+		return cnt, err
 	} else {
-		return 0
+		return 0, nil
 	}
 }
 
 func (this *TCPSocket) writeConsumer() {
 	for {
 		if data, isOpen := <-this.writeChannel; isOpen {
-			this.write(data)
+			if !this.closed {
+				_, err := this.write(data)
+				if nil != err {
+					for v := range this.writeChannel {
+						func(v []byte) {}(v)
+					}
+					this.EmitGo("writeChannelFinished")
+					break
+				}
+			} else {
+				for v := range this.writeChannel {
+					func(v []byte) {}(v)
+				}
+				this.EmitGo("writeChannelFinished")
+				break
+			}
+
 			data = nil
 		} else {
 			this.EmitGo("writeChannelFinished")
@@ -285,24 +369,70 @@ func (this *TCPSocket) readConsumer() {
 	}
 }
 
+func (this *TCPSocket) OnConnect(listener func(...interface{})) {
+	eventName := "connect"
+	_, ok := this.declareHanlders[eventName]
+	if !ok {
+		this.declareHanlders[eventName] = make([]func(...interface{}), 0)
+	}
+	this.declareHanlders[eventName] = append(this.declareHanlders[eventName], listener)
+
+	this.Once(eventName, listener)
+}
+
 func (this *TCPSocket) OnData(listener func(...interface{})) {
-	this.On("data", listener)
+	eventName := "data"
+	_, ok := this.declareHanlders[eventName]
+	if !ok {
+		this.declareHanlders[eventName] = make([]func(...interface{}), 0)
+	}
+	this.declareHanlders[eventName] = append(this.declareHanlders[eventName], listener)
+
+	this.On(eventName, listener)
 }
 
 func (this *TCPSocket) OnError(listener func(...interface{})) {
-	this.On("error", listener)
+	eventName := "error"
+	_, ok := this.declareHanlders[eventName]
+	if !ok {
+		this.declareHanlders[eventName] = make([]func(...interface{}), 0)
+	}
+	this.declareHanlders[eventName] = append(this.declareHanlders[eventName], listener)
+
+	this.On(eventName, listener)
 }
 
 func (this *TCPSocket) OnClose(listener func(...interface{})) {
-	this.Once("close", listener)
+	eventName := "close"
+	_, ok := this.declareHanlders[eventName]
+	if !ok {
+		this.declareHanlders[eventName] = make([]func(...interface{}), 0)
+	}
+	this.declareHanlders[eventName] = append(this.declareHanlders[eventName], listener)
+
+	this.Once(eventName, listener)
 }
 
 func (this *TCPSocket) OnEnd(listener func(...interface{})) {
-	this.Once("end", listener)
+	eventName := "end"
+	_, ok := this.declareHanlders[eventName]
+	if !ok {
+		this.declareHanlders[eventName] = make([]func(...interface{}), 0)
+	}
+	this.declareHanlders[eventName] = append(this.declareHanlders[eventName], listener)
+
+	this.Once(eventName, listener)
 }
 
 func (this *TCPSocket) OnTimeout(listener func(...interface{})) {
-	this.On("timeout", listener)
+	eventName := "timeout"
+	_, ok := this.declareHanlders[eventName]
+	if !ok {
+		this.declareHanlders[eventName] = make([]func(...interface{}), 0)
+	}
+	this.declareHanlders[eventName] = append(this.declareHanlders[eventName], listener)
+
+	this.Once(eventName, listener)
 }
 
 func (this *TCPSocket) On(t string, listener func(...interface{})) {
@@ -322,14 +452,19 @@ func (this *TCPSocket) RemoteAddr() net.Addr {
 }
 
 func (this *TCPSocket) Close() {
+	this.closed = true
 	if this.Conn != nil {
 		err := this.Conn.Close()
-		if err != nil {
-			this.EmitGo("error", SocketCloseException.NewThrow(err.Error()))
-		} else {
+		if err == nil {
 			this.EmitGo("close")
+		} else {
+			//this.EmitGo("error", SocketCloseException.NewThrow(err.Error()))
 		}
 	}
+}
+
+func (this *TCPSocket) IsClose() bool {
+	return this.closed
 }
 
 func (this *TCPSocket) SetOpeningStatus() {
@@ -347,6 +482,7 @@ func (this *TCPSocket) SetOpenStatus() {
 
 func (this *TCPSocket) SetCloseStatus() {
 	// 更新状态
+	this.closed = true
 	this.connecting = false
 	this.readable = false
 	this.writeable = false
@@ -418,18 +554,41 @@ func (this *TCPSocket) GetHost() string {
 	return this.host
 }
 
+// 重新加载声明过的事件
+func (this *TCPSocket) reloadDeclareHandlers() {
+	for k, v := range this.declareHanlders {
+		if nil != v {
+			for i := 0; i < len(v); i++ {
+				if nil != v[i] {
+					this.On(k, v[i])
+				}
+			}
+		}
+	}
+}
+
 // 销毁
 func (this *TCPSocket) Destroy() {
-	this.EventEmitter.Destory()
-	this.Conn = nil
-	this.writeChannel = nil
-	this.readChannel = nil
+	go func() {
+		this.EventEmitter.Destory()
+		this.Conn = nil
+		this.writeChannel = nil
+		this.readChannel = nil
+
+		this.declareHanlders = nil
+	}()
 }
 
 // connect(port [, host])
 func Connect(port int, host string) Socket {
 	socket := NewTCPSocket()
-	socket.Connect(port, host)
+
+	GetSocketWaitGroup("tcp_socket Connect() WaitGroup add 1").Add(1)
+	go func() {
+		socket.Connect(port, host)
+		GetSocketWaitGroup("tcp_socket Connect() WaitGroup done 1").Add(1)
+	}()
+
 	return socket
 }
 
@@ -440,6 +599,10 @@ func newSocketForServer(conn net.Conn) *TCPSocket {
 		Conn:         conn,
 	}
 	s.Init()
+
+	// 在 SocketWaitGroup 中标记 进行中
+	GetSocketWaitGroup("tcp_socket newSocketForServer() WaitGroup add 1").Add(1)
+
 	s.SetOpeningStatus()
 	s.SetOpenStatus()
 	return s

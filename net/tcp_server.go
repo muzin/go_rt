@@ -122,7 +122,7 @@ func (this *TCPServer) Listen(args ...interface{}) {
 	}
 
 	// 加入 服务结束等待组中
-	GetSocketWaitGroup().Add(1)
+	GetSocketWaitGroup("tcp_server Listen() WaitGroup add 1").Add(1)
 
 	go func() {
 		time.Sleep(10 * time.Millisecond)
@@ -146,6 +146,7 @@ func (this *TCPServer) ConnectHandle() {
 				defer try.Catch(ServerAcceptException, func(throwable try.Throwable) {
 					this.EmitGo("error", throwable)
 				})()
+
 				// 接收来自 client 的连接,会阻塞
 				conn, err := server.Accept()
 
@@ -164,9 +165,9 @@ func (this *TCPServer) ConnectHandle() {
 				newSocket := newSocketHandle(conn)
 
 				// 连接结束后，socketsEndWg.Done()
-				this.socketsEndWg.Add(1)
+				GetSocketWaitGroup("tcp_server ConnectHandle() socket connect WaitGroup add 1").Add(1)
 				newSocket.On("end", func(args ...interface{}) {
-					this.socketsEndWg.Done()
+					GetSocketWaitGroup("tcp_server ConnectHandle() socket connect WaitGroup done 1").Done()
 				})
 
 				// 发送 有新 socket 连接事件
@@ -232,7 +233,7 @@ func (this *TCPServer) Close() {
 
 	// go 等待 socket都结束后，发送 结束事件
 	go func() {
-		this.socketsEndWg.Wait()
+		//this.socketsEndWg.Wait()
 
 		// 已结束
 		this.ended = true
@@ -241,7 +242,7 @@ func (this *TCPServer) Close() {
 	}()
 
 	// 记录 server 结束
-	GetSocketWaitGroup().Done()
+	GetSocketWaitGroup("tcp_server Close() WaitGroup done 1").Done()
 
 }
 

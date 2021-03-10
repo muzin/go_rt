@@ -3,7 +3,6 @@ package tls
 import (
 	"crypto/tls"
 	rt_net "github.com/muzin/go_rt/net"
-	"github.com/muzin/go_rt/try"
 	"net"
 	"strconv"
 )
@@ -18,11 +17,11 @@ func NewTLSSocket() *TLSSocket {
 	s := &TLSSocket{
 		TCPSocket: *rt_net.NewTCPSocket(),
 	}
-	s.Init()
+	s.init()
 	return s
 }
 
-func (this *TLSSocket) Init() {
+func (this *TLSSocket) init() {
 
 }
 
@@ -47,14 +46,21 @@ func (this *TLSSocket) Connect(args ...interface{}) {
 	network := "tcp"
 	address := this.GetHost() + ":" + strconv.Itoa(this.GetPort())
 
+	// 在 SocketWaitGroup 中标记 进行中
+	rt_net.GetSocketWaitGroup("tls_socket Connect() WaitGroup add 1").Add(1)
+
 	conn, err := tls.Dial(network, address, this.config)
 	if err != nil {
-		try.Throw(rt_net.SocketConnectException.NewThrow(err.Error()))
+		//try.Throw(rt_net.SocketConnectException.NewThrow(err.Error()))
+		this.Emit("error", rt_net.SocketConnectException.NewThrow(err.Error()))
+		this.EmitGo("close", true)
+		return
 	}
 
 	this.SetOpenStatus()
 
 	this.Conn = conn
+	this.Emit("connect", this)
 	go this.ConnectHandle()
 }
 
@@ -71,7 +77,13 @@ func (this *TLSSocket) Destroy() {
 // connect(port [, host [, options]])
 func ConnectTLS(port int, host string, options *tls.Config) rt_net.Socket {
 	socket := NewTLSSocket()
-	socket.Connect(port, host, options)
+
+	rt_net.GetSocketWaitGroup("tls_socket ConnectTLS() WaitGroup add 1").Add(1)
+	go func() {
+		socket.Connect(port, host, options)
+		rt_net.GetSocketWaitGroup("tls_socket ConnectTLS() WaitGroup done 1").Done()
+	}()
+
 	return socket
 }
 
@@ -86,5 +98,9 @@ func newSocketForTLSServer(conn net.Conn) *TLSSocket {
 		TCPSocket: *tcpSocket,
 	}
 	s.Init()
+
+	// 在 SocketWaitGroup 中标记 进行中
+	rt_net.GetSocketWaitGroup("tls_socket newSocketForTlsServer() WaitGroup add 1").Add(1)
+
 	return s
 }

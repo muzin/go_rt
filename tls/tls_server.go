@@ -54,6 +54,9 @@ func (this *TLSServer) Listen(args ...interface{}) {
 		try.Throw(rt_net.ServerListenException.NewThrow(listenErr.Error()))
 	}
 
+	// 加入 服务结束等待组中
+	rt_net.GetSocketWaitGroup("tls_server Listen() WaitGroup add 1").Add(1)
+
 	go func() {
 		time.Sleep(10 * time.Millisecond)
 		// 发送 监听事件

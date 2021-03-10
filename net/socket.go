@@ -15,6 +15,8 @@ type Socket interface {
 
 	Write(args ...interface{}) int
 
+	OnConnect(listener func(...interface{}))
+
 	OnData(listener func(...interface{}))
 
 	OnError(listener func(...interface{}))
@@ -38,6 +40,8 @@ type Socket interface {
 	RemoteAddr() net.Addr
 
 	Close()
+
+	IsClose() bool
 
 	SetOpeningStatus()
 

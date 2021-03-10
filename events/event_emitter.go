@@ -195,6 +195,10 @@ func (this *EventEmitter) AddListener(t string, listener func(...interface{})) *
 	return this.addListener(t, listener, this.GetPrepend())
 }
 
+func (this *EventEmitter) AddAppendListener(t string, listener func(...interface{})) *EventEmitter {
+	return this.addListener(t, listener, false)
+}
+
 func (this *EventEmitter) addListener(t string, listener func(...interface{}), prepend bool) *EventEmitter {
 
 	var existing []func(...interface{})
@@ -225,9 +229,9 @@ func (this *EventEmitter) addListener(t string, listener func(...interface{}), p
 		this.eventsCount += 1
 	} else {
 		if prepend {
-			existing = append(append(make([]func(...interface{}), 0), existing...), listener)
+			existing = append(append(make([]func(...interface{}), 0), listener), existing...)
 		} else {
-			existing = append(make([]func(...interface{}), 0), listener)
+			existing = append(append(make([]func(...interface{}), 0), existing...), listener)
 		}
 		this.events.Store(t, existing)
 	}
@@ -274,9 +278,9 @@ func (this *EventEmitter) EventNames() []string {
 	return strings
 }
 
-// 监听一次
+// 只监听一次
 func (this *EventEmitter) Once(t string, listener func(...interface{})) *EventEmitter {
-	return this.On(t, this.onceWrap(t, listener))
+	return this.addListener(t, this.onceWrap(t, listener), false)
 }
 
 func (this *EventEmitter) onceWrap(t string, listener func(...interface{})) func(...interface{}) {
@@ -305,13 +309,31 @@ func (this *EventEmitter) RemoveListener(t string) *EventEmitter {
 		} else {
 			//delete(this.events, t)
 			this.events.Delete(t)
-			this.eventsCount--
+			this.eventsCount -= 1
 			_, rmOk := events.Load(EVENT_EMITTER_REMOVE_LISTENER_NAME)
 			if rmOk {
 				this.EmitGo(EVENT_EMITTER_REMOVE_LISTENER_NAME, t, handlers)
 			}
 		}
 	}
+
+	return this
+}
+
+// 移除事件
+func (this *EventEmitter) RemoveAllListener() *EventEmitter {
+
+	if nil != this.events {
+		eventNames := this.EventNames()
+		for i := 0; i < len(eventNames); i++ {
+			eventName := eventNames[i]
+			this.events.Delete(eventName)
+		}
+		this.events = nil
+	}
+
+	this.events = &sync.Map{}
+	this.eventsCount = 0
 
 	return this
 }
@@ -339,6 +361,7 @@ func (this *EventEmitter) GetPrepend() bool {
 
 // 销毁
 func (this *EventEmitter) Destory() {
+
 	this.eventsCount = 0
 	this.maxListeners = 0
 	this.prepend = false
@@ -350,4 +373,5 @@ func (this *EventEmitter) Destory() {
 		}
 		this.events = nil
 	}
+
 }

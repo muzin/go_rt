@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 )
@@ -38,6 +39,8 @@ var (
 
 	// 全局 socket 结束 WaitGroup
 	SocketWaitGroup sync.WaitGroup
+	// debug socketWaitGroup 状态
+	debugSocketWaitGroup bool
 )
 
 func IsIPv4(s string) bool {
@@ -65,7 +68,13 @@ func IsLegalPort(port int) bool {
 	return int(math.Abs(float64(port))) == (int(math.Abs(float64(port)))>>0) && port <= 0xFFFF
 }
 
-func GetSocketWaitGroup() *sync.WaitGroup {
+func GetSocketWaitGroup(tags ...string) *sync.WaitGroup {
+	// 如果 打开 debug waitGroup
+	if GetDebugSocketWaitGroup() {
+		if len(tags) > 0 {
+			fmt.Println(strings.Join(tags, " "))
+		}
+	}
 	return &SocketWaitGroup
 }
 
@@ -78,4 +87,19 @@ func WaitAfterSocketEnd() {
 		GetSocketWaitGroup().Wait()
 		time.Sleep(50 * time.Millisecond)
 	}
+}
+
+// 激活 debugSocketWaitGroup
+func EnableDebugSocketWaitGroup() {
+	debugSocketWaitGroup = true
+}
+
+// 禁用 debugSocketWaitGroup
+func DisableDebugSocketWaitGroup() {
+	debugSocketWaitGroup = false
+}
+
+// 获取 debugSocketWaitGroup 状态
+func GetDebugSocketWaitGroup() bool {
+	return debugSocketWaitGroup
 }
