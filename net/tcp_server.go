@@ -164,9 +164,14 @@ func (this *TCPServer) ConnectHandle() {
 				newSocketHandle := this.GetNewSocketHandle()
 				newSocket := newSocketHandle(conn)
 
+				// server 当前连接数 +1
+				this.connections += 1
+
 				// 连接结束后，socketsEndWg.Done()
 				GetSocketWaitGroup("tcp_server ConnectHandle() socket connect WaitGroup add 1").Add(1)
 				newSocket.On("end", func(args ...interface{}) {
+					// 当 socket 关闭时， 当前连接数 -1
+					this.connections -= 1
 					GetSocketWaitGroup("tcp_server ConnectHandle() socket connect WaitGroup done 1").Done()
 				})
 
