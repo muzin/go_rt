@@ -7,6 +7,8 @@ type Timer interface {
 	Open()
 
 	Close()
+
+	Destroy()
 }
 
 type TimeoutTimer struct {
