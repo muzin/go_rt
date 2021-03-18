@@ -1,4 +1,4 @@
-package color_string
+package colorstr
 
 import "fmt"
 

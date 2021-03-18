@@ -23,10 +23,6 @@ type Server interface {
 
 	OnError(listener func(...interface{}))
 
-	Close()
-
-	End()
-
 	SetPauseOnConnect(status bool)
 
 	GetPauseOnConnect() bool
@@ -42,4 +38,8 @@ type Server interface {
 	SetHost(host string)
 
 	GetHost() string
+
+	Close()
+
+	End()
 }

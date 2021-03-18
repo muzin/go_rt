@@ -24,7 +24,7 @@ type TimeoutTimer struct {
 
 // 创建 Timeout 定时器
 func NewTimeoutTimer(cb func(), ms int) Timer {
-	delay := time.Duration(ms) * time.Millisecond
+	delay := time.Duration(ms)
 	timeoutTimer := &TimeoutTimer{
 		handle: cb,
 		delay:  delay,
@@ -37,9 +37,9 @@ func (this *TimeoutTimer) openHandle() {
 }
 
 func (this *TimeoutTimer) Open() {
-	if this.timerid > 0 {
-		this.Close()
-	}
+	//if this.timerid > 0 {
+	//	this.Close()
+	//}
 	this.openHandle()
 }
 
@@ -68,7 +68,7 @@ type IntervalTimer struct {
 //
 // 如果 cb 返回 false，则 interval 结束
 func NewIntervalTimer(cb func() bool, ms int) Timer {
-	delay := time.Duration(ms) * time.Millisecond
+	delay := time.Duration(ms)
 	intervalTimer := &IntervalTimer{
 		handle: cb,
 		delay:  delay,
@@ -81,9 +81,9 @@ func (this *IntervalTimer) openHandle() {
 }
 
 func (this *IntervalTimer) Open() {
-	if this.timerid > 0 {
-		this.Close()
-	}
+	//if this.timerid > 0 {
+	//	this.Close()
+	//}
 	this.openHandle()
 }
 

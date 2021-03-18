@@ -2,8 +2,8 @@ package events
 
 import (
 	"fmt"
-	colorstr "github.com/muzin/go_rt/collection/print/color_string"
 	str "github.com/muzin/go_rt/lang/str"
+	"github.com/muzin/go_rt/print/colorstr"
 	"github.com/muzin/go_rt/try"
 	"sync"
 )

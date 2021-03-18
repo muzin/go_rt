@@ -159,8 +159,8 @@ func (this *TCPSocket) Init() {
 		})
 
 		// 关闭 读写通道
-		close(this.writeChannel)
-		close(this.readChannel)
+		//close(this.writeChannel)
+		//close(this.readChannel)
 
 		wg.Wait()
 
@@ -270,7 +270,7 @@ func (this *TCPSocket) ConnectHandle() {
 				} else {
 					//this.Emit("data", buf[0:cnt])
 					// 将 数据 写入 读缓冲区
-					this.readChannel <- buf[0:cnt]
+					this.readChannel <- append(make([]byte, 0), buf[0:cnt]...)
 				}
 			}()
 		} else {
@@ -570,6 +570,10 @@ func (this *TCPSocket) reloadDeclareHandlers() {
 // 销毁
 func (this *TCPSocket) Destroy() {
 	go func() {
+		// 关闭 读写通道
+		close(this.writeChannel)
+		close(this.readChannel)
+
 		this.EventEmitter.Destory()
 		this.Conn = nil
 		this.writeChannel = nil
