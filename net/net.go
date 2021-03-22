@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -72,7 +74,14 @@ func GetSocketWaitGroup(tags ...string) *sync.WaitGroup {
 	// 如果 打开 debug waitGroup
 	if GetDebugSocketWaitGroup() {
 		if len(tags) > 0 {
-			fmt.Println(strings.Join(tags, " "))
+			_, file, line, ok := runtime.Caller(1)
+			var code string
+			if ok {
+				code = file + ":" + strconv.Itoa(line)
+			} else {
+				code = ""
+			}
+			fmt.Printf("\033[47;30m%s\033[0m %s\n", code, strings.Join(tags, " "))
 		}
 	}
 	return &SocketWaitGroup

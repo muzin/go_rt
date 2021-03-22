@@ -51,6 +51,9 @@ func (this *KeyValuePair) IsEmpty() bool {
 }
 
 func (this *KeyValuePair) Get(key string) *interface{} {
+	this.mu.Lock()
+	defer this.mu.Unlock()
+
 	i := this.table[key]
 	return i
 }
@@ -66,7 +69,8 @@ func (this *KeyValuePair) Remove(key string) {
 	this.mu.Lock()
 	defer this.mu.Unlock()
 
-	if this.ContainsKey(key) {
+	_, contains := this.table[key]
+	if contains {
 		delete(this.table, key)
 		this.delCount++
 		// 每次移除后，检验是否重新组建Map
@@ -90,6 +94,8 @@ func (this *KeyValuePair) RemoveValue(value *interface{}) {
 }
 
 func (this *KeyValuePair) ContainsKey(key string) bool {
+	this.mu.Lock()
+	defer this.mu.Unlock()
 
 	_, ok := this.table[key]
 	if ok {

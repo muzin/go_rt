@@ -153,7 +153,7 @@ func (this *TCPServer) ConnectHandle() {
 				if err != nil {
 					// close network connect
 					if str.EndsWith(err.Error(), "use of closed network connection") {
-						this.EmitGo("close", true) // 主动关闭
+						this.Emit("close", true) // 主动关闭
 					} else {
 						try.Throw(ServerAcceptException.NewThrow(err.Error()))
 					}

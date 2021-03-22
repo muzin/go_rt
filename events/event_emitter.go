@@ -323,11 +323,12 @@ func (this *EventEmitter) RemoveListener(t string) *EventEmitter {
 // 移除事件
 func (this *EventEmitter) RemoveAllListener() *EventEmitter {
 
-	if nil != this.events {
+	events := this.events
+	if nil != events {
 		eventNames := this.EventNames()
 		for i := 0; i < len(eventNames); i++ {
 			eventName := eventNames[i]
-			this.events.Delete(eventName)
+			events.Delete(eventName)
 		}
 		this.events = nil
 	}

@@ -51,6 +51,9 @@ func (this *HashMap) IsEmpty() bool {
 }
 
 func (this *HashMap) Get(key interface{}) interface{} {
+	this.mu.Lock()
+	defer this.mu.Unlock()
+
 	return this.table[key]
 }
 
@@ -72,6 +75,8 @@ func (this *HashMap) Remove(key interface{}) {
 }
 
 func (this *HashMap) ContainsKey(key interface{}) bool {
+	this.mu.Lock()
+	defer this.mu.Unlock()
 
 	_, ok := this.table[key]
 	if ok {

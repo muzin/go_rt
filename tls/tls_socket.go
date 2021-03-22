@@ -53,21 +53,26 @@ func (this *TLSSocket) Connect(args ...interface{}) {
 	if err != nil {
 		//try.Throw(rt_net.SocketConnectException.NewThrow(err.Error()))
 		this.Emit("error", rt_net.SocketConnectException.NewThrow(err.Error()))
-		this.EmitGo("close", true)
+		this.Emit("close", true)
 		return
 	}
 
 	this.SetOpenStatus()
 
 	this.Conn = conn
-	this.Emit("connect", this)
 	go this.ConnectHandle()
+	this.Emit("connect", this)
 }
 
 func (this *TLSSocket) Reconnect() {
 	this.TCPSocket.Init()
-	this.Init()
-	this.TCPSocket.Connect(this.GetPort(), this.GetHost(), this.config)
+	this.init()
+
+	rt_net.GetSocketWaitGroup("tls_socket Reconnect() Connect Listen WaitGroup add 1").Add(1)
+	go func() {
+		this.TCPSocket.Connect(this.GetPort(), this.GetHost(), this.config)
+		rt_net.GetSocketWaitGroup("tls_socket Reconnect() Connect Listen WaitGroup done 1").Done()
+	}()
 }
 
 func (this *TLSSocket) Destroy() {
