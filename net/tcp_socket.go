@@ -293,13 +293,9 @@ func (this *TCPSocket) ConnectHandle() {
 					this.suspend = true   // 暂停
 					this.destroyed = true // 销毁
 					if str.EndsWith(err.Error(), "use of closed network connection") {
-						if !this.closed {
-							this.Emit("close", true) // 主动关闭
-						}
+						this.Emit("close", true) // 主动关闭
 					} else if err.Error() == "EOF" { // 结束
-						if !this.closed {
-							this.Emit("close", false) // 被动关闭
-						}
+						this.Emit("close", false) // 被动关闭
 					} else if str.StartsWith(err.Error(), "read ") &&
 						str.EndsWith(err.Error(), " i/o timeout") {
 						this.Emit("_timeout", "read")
@@ -552,7 +548,7 @@ func (this *TCPSocket) Close() {
 	if this.Conn != nil {
 		err := this.Conn.Close()
 		if err == nil {
-			this.Emit("close", true)
+			//this.Emit("close", true)
 		} else {
 			//this.EmitGo("error", SocketCloseException.NewThrow(err.Error()))
 		}
