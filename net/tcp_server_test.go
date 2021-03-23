@@ -12,7 +12,6 @@ func TestNewServer(t *testing.T) {
 		wg.Add(1)
 
 		server := NewTCPServer()
-		server.Listen(15000, "127.0.0.1")
 
 		server.OnListen(func(args ...interface{}) {
 			network := args[0].(string)
@@ -21,6 +20,8 @@ func TestNewServer(t *testing.T) {
 
 			wg.Done()
 		})
+
+		server.Listen(15000, "127.0.0.1")
 
 		wg.Wait()
 		//time.Sleep(10 * time.Second)

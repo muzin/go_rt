@@ -225,15 +225,19 @@ func (this *EventEmitter) addListener(t string, listener func(...interface{}), p
 	if nil == existing {
 		handlers := make([]func(...interface{}), 1)
 		handlers[0] = listener
-		this.events.Store(t, handlers)
-		this.eventsCount += 1
+		if nil != this.events {
+			this.events.Store(t, handlers)
+			this.eventsCount += 1
+		}
 	} else {
 		if prepend {
 			existing = append(append(make([]func(...interface{}), 0), listener), existing...)
 		} else {
 			existing = append(append(make([]func(...interface{}), 0), existing...), listener)
 		}
-		this.events.Store(t, existing)
+		if nil != this.events {
+			this.events.Store(t, existing)
+		}
 	}
 
 	m := this.GetMaxListeners()
@@ -269,7 +273,7 @@ func (this *EventEmitter) ListenerCount(t string) int {
 
 func (this *EventEmitter) EventNames() []string {
 	strings := make([]string, 0)
-	if this.eventsCount > 0 {
+	if this.eventsCount > 0 && nil != this.events {
 		this.events.Range(func(key interface{}, value interface{}) bool {
 			strings = append(strings, key.(string))
 			return true
