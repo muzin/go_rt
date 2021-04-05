@@ -27,7 +27,11 @@ func SetTimeout(cb func(), ms int) int64 {
 		time.Sleep(time.Duration(ms) * time.Millisecond)
 
 		statusOk := timeoutTaskStatusMap.ContainsKey(id)
-		status := timeoutTaskStatusMap.Get(id).(bool)
+		obj := timeoutTaskStatusMap.Get(id)
+		var status bool = false
+		if obj != nil {
+			status = obj.(bool)
+		}
 
 		if statusOk && status {
 			cb()

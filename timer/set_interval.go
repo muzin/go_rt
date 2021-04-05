@@ -22,7 +22,12 @@ func SetInterval(cb func() bool, ms int) int64 {
 
 		for {
 			statusOk := intervalTaskStatusMap.ContainsKey(id)
-			status := intervalTaskStatusMap.Get(id).(bool)
+			obj := intervalTaskStatusMap.Get(id)
+			var status bool = false
+			if obj != nil {
+				status = obj.(bool)
+			}
+
 			if statusOk && status {
 				time.Sleep(time.Duration(ms) * time.Millisecond)
 				if statusOk && status {
