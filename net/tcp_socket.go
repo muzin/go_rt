@@ -308,7 +308,9 @@ func (this *TCPSocket) ConnectHandle() {
 				} else {
 					//this.Emit("data", buf[0:cnt])
 					// 将 数据 写入 读缓冲区
-					this.readChannel <- append(make([]byte, 0), buf[0:cnt]...)
+					if !this.readChannelClosed {
+						this.readChannel <- append(make([]byte, 0), buf[0:cnt]...)
+					}
 				}
 			}()
 		} else {
@@ -338,14 +340,17 @@ func (this *TCPSocket) Write(args ...interface{}) int {
 	}
 
 	// 如果 没有 关闭加入到 写缓冲区
+	if !this.writeChannelClosed {
+		this.writeChannel <- data[index:(index + length)]
+		data = nil
+	}
+
 	//if !this.closed {
-	this.writeChannel <- data[index:(index + length)]
+
 	//this.writeChannel <- append(make([]byte, 0), data[index:(index + length)]...)
 	//}
 
 	//cnt, err := this.write(data[index:(index + length)])
-
-	data = nil
 
 	return length
 }
