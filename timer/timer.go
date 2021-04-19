@@ -9,6 +9,8 @@ type Timer interface {
 	Close()
 
 	Destroy()
+
+	Id() int64
 }
 
 type TimeoutTimer struct {
@@ -50,6 +52,10 @@ func (this *TimeoutTimer) Close() {
 func (this *TimeoutTimer) Destroy() {
 	this.Close()
 	this.handle = nil
+}
+
+func (this *TimeoutTimer) Id() int64 {
+	return this.timerid
 }
 
 type IntervalTimer struct {
@@ -94,4 +100,8 @@ func (this *IntervalTimer) Close() {
 func (this *IntervalTimer) Destroy() {
 	this.Close()
 	this.handle = nil
+}
+
+func (this *IntervalTimer) Id() int64 {
+	return this.timerid
 }
