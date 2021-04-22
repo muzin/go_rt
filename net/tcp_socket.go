@@ -82,6 +82,13 @@ type TCPSocket struct {
 
 	// 声明 的 处理器， 再重新加载时加载
 	declareHanlders map[string][]func(...interface{})
+
+	// 锁
+	mu sync.Mutex
+
+	// socket 地址缓存
+	localAddrCache  net.Addr
+	remoteAddrCache net.Addr
 }
 
 func NewTCPSocket() *TCPSocket {
@@ -464,6 +471,9 @@ func (this *TCPSocket) readConsumer() {
 }
 
 func (this *TCPSocket) OnConnect(listener func(...interface{})) {
+	this.mu.Lock()
+	defer this.mu.Unlock()
+
 	eventName := "connect"
 	_, ok := this.declareHanlders[eventName]
 	if !ok {
@@ -475,6 +485,9 @@ func (this *TCPSocket) OnConnect(listener func(...interface{})) {
 }
 
 func (this *TCPSocket) OnData(listener func(...interface{})) {
+	this.mu.Lock()
+	defer this.mu.Unlock()
+
 	eventName := "data"
 	_, ok := this.declareHanlders[eventName]
 	if !ok {
@@ -486,6 +499,9 @@ func (this *TCPSocket) OnData(listener func(...interface{})) {
 }
 
 func (this *TCPSocket) OnError(listener func(...interface{})) {
+	this.mu.Lock()
+	defer this.mu.Unlock()
+
 	eventName := "error"
 	_, ok := this.declareHanlders[eventName]
 	if !ok {
@@ -497,6 +513,9 @@ func (this *TCPSocket) OnError(listener func(...interface{})) {
 }
 
 func (this *TCPSocket) OnClose(listener func(...interface{})) {
+	this.mu.Lock()
+	defer this.mu.Unlock()
+
 	eventName := "close"
 	_, ok := this.declareHanlders[eventName]
 	if !ok {
@@ -508,6 +527,9 @@ func (this *TCPSocket) OnClose(listener func(...interface{})) {
 }
 
 func (this *TCPSocket) OnEnd(listener func(...interface{})) {
+	this.mu.Lock()
+	defer this.mu.Unlock()
+
 	eventName := "end"
 	_, ok := this.declareHanlders[eventName]
 	if !ok {
@@ -519,6 +541,9 @@ func (this *TCPSocket) OnEnd(listener func(...interface{})) {
 }
 
 func (this *TCPSocket) OnTimeout(listener func(...interface{})) {
+	this.mu.Lock()
+	defer this.mu.Unlock()
+
 	eventName := "timeout"
 	_, ok := this.declareHanlders[eventName]
 	if !ok {
@@ -538,11 +563,21 @@ func (this *TCPSocket) Once(t string, listener func(...interface{})) {
 }
 
 func (this *TCPSocket) LocalAddr() net.Addr {
-	return this.Conn.LocalAddr()
+	if this.localAddrCache == nil {
+		if this.Conn != nil {
+			this.localAddrCache = this.Conn.LocalAddr()
+		}
+	}
+	return this.localAddrCache
 }
 
 func (this *TCPSocket) RemoteAddr() net.Addr {
-	return this.Conn.RemoteAddr()
+	if this.remoteAddrCache == nil {
+		if this.Conn != nil {
+			this.remoteAddrCache = this.Conn.RemoteAddr()
+		}
+	}
+	return this.remoteAddrCache
 }
 
 func (this *TCPSocket) Close() {
