@@ -46,7 +46,8 @@ func CatchUncaughtException(cb func(Throwable)) func() {
 				cb(e.(Throwable))
 			default:
 				// 如果 没有 匹配到 异常 继续向上 抛 异常
-				panic(e)
+				err := e.(error)
+				cb(UnhandledError.NewThrow(err.Error()))
 			}
 		}
 	}
