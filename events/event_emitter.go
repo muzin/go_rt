@@ -19,18 +19,83 @@ const (
 	EVENT_EMITTER_REMOVE_LISTENER_NAME = "removeListener"
 )
 
+var (
+	// 空 监听器集合
+	EMPTY_LISTENERS = make([]func(...interface{}), 0)
+)
+
 // 事件发射器
 type EventEmitter struct {
+
+	// 事件监听数量
 	eventsCount int
 
 	//events map[string][]func(...interface{})
 
+	// 事件集合中存放的事件包裹器
 	events *sync.Map
 
+	// 最大监听事件数，超出后警告
 	maxListeners int
 
 	// 是否允许事件有多个监听函数
 	prepend bool
+}
+
+// 事件包裹器
+type EventWrap struct {
+	// 事件名称
+	name string
+
+	// 监听事件
+	listeners []func(...interface{})
+
+	// 是否只能执行一次 默认：false
+	isOnce bool
+
+	// 是否触发过 默认：false
+	emitted bool
+
+	emitcount int
+
+	mu sync.Mutex
+}
+
+// 获取名称
+func (this *EventWrap) GetName() string {
+	return this.name
+}
+
+// 获取事件
+func (this *EventWrap) GetListeners() []func(...interface{}) {
+	this.mu.Lock()
+	defer this.mu.Unlock()
+
+	// 如果 是只触发一次
+	if this.isOnce && this.emitted {
+		return EMPTY_LISTENERS
+	}
+
+	return this.listeners
+}
+
+// 获取事件
+func (this *EventWrap) AddHandler(handler func(...interface{}), prepend bool) {
+	if prepend {
+		this.listeners = append(append(make([]func(...interface{}), 0), handler), this.listeners...)
+	} else {
+		this.listeners = append(this.listeners, handler)
+	}
+}
+
+func (this *EventWrap) Emitted() {
+	if !this.emitted {
+		this.emitted = true
+	}
+}
+
+func (this *EventWrap) IsOnce() bool {
+	return this.isOnce
 }
 
 func NewEventEmitter() *EventEmitter {
@@ -41,13 +106,18 @@ func NewEventEmitter() *EventEmitter {
 
 // init
 func (this *EventEmitter) init() {
+	// 初始化 events
 	if nil == this.events {
 		//this.events = make(map[string][]func(...interface{}))
 		this.events = &sync.Map{}
 		this.eventsCount = 0
 	}
+
+	// 设置 最大监听数量
 	this.maxListeners = DEFAULT_MAX_LISTENERS
-	this.prepend = true
+
+	// 默认 新增的监听器向后方
+	this.prepend = false
 }
 
 // SetMaxListeners
@@ -112,10 +182,20 @@ func (this *EventEmitter) emit(t string, rungo bool, args ...interface{}) bool {
 		}
 	}
 
-	handlersInterface, _ := events.Load(t)
+	handlersEventWrapPtr, _ := events.Load(t)
+
 	var handlers []func(...interface{})
-	if nil != handlersInterface {
-		handlers = handlersInterface.([]func(...interface{}))
+	if nil != handlersEventWrapPtr {
+		eventWrapPtr := handlersEventWrapPtr.(*EventWrap)
+		handlers = eventWrapPtr.GetListeners()
+
+		// 提前将 发射标识设置为已发射，确保只执行一次
+		eventWrapPtr.Emitted()
+
+		if len(handlers) > 0 {
+			eventWrapPtr.emitcount++
+		}
+
 	}
 
 	if nil == handlers {
@@ -125,10 +205,11 @@ func (this *EventEmitter) emit(t string, rungo bool, args ...interface{}) bool {
 	var errorHandler func(...interface{})
 
 	// 获取 异常处理函数
-	errorHandlersInterface, errOk := events.Load("error")
+	errorHandlersEventWrapPtr, errOk := events.Load("error")
 	var errorHandlers []func(...interface{})
-	if nil != errorHandlersInterface {
-		errorHandlers = errorHandlersInterface.([]func(...interface{}))
+	if nil != errorHandlersEventWrapPtr {
+		eventWrap := errorHandlersEventWrapPtr.(*EventWrap)
+		errorHandlers = eventWrap.GetListeners()
 	}
 
 	if errOk && len(errorHandlers) > 0 {
@@ -192,14 +273,14 @@ func (this *EventEmitter) OnRemoveListener(listener func(...interface{})) *Event
 }
 
 func (this *EventEmitter) AddListener(t string, listener func(...interface{})) *EventEmitter {
-	return this.addListener(t, listener, this.GetPrepend())
+	return this.addListener(t, listener, this.GetPrepend(), false)
 }
 
 func (this *EventEmitter) AddAppendListener(t string, listener func(...interface{})) *EventEmitter {
-	return this.addListener(t, listener, false)
+	return this.addListener(t, listener, false, false)
 }
 
-func (this *EventEmitter) addListener(t string, listener func(...interface{}), prepend bool) *EventEmitter {
+func (this *EventEmitter) addListener(t string, listener func(...interface{}), prepend bool, isOnce bool) *EventEmitter {
 
 	var existing []func(...interface{})
 
@@ -210,34 +291,34 @@ func (this *EventEmitter) addListener(t string, listener func(...interface{}), p
 		this.events = &sync.Map{}
 		events = this.events
 		this.eventsCount = 0
-	} else {
-		_, newOk := events.Load(EVENT_EMITTER_NEW_LISTENER_NAME)
-		if newOk {
-			this.EmitGo(EVENT_EMITTER_NEW_LISTENER_NAME, t, listener)
-			events = this.events
-		}
-		existingInterface, _ := events.Load(t)
-		if nil != existingInterface {
-			existing = existingInterface.([]func(...interface{}))
-		}
 	}
 
-	if nil == existing {
-		handlers := make([]func(...interface{}), 1)
-		handlers[0] = listener
-		if nil != this.events {
-			this.events.Store(t, handlers)
-			this.eventsCount += 1
+	_, newOk := events.Load(EVENT_EMITTER_NEW_LISTENER_NAME)
+	if newOk {
+		this.EmitGo(EVENT_EMITTER_NEW_LISTENER_NAME, t, listener)
+		events = this.events
+	}
+	existingInterfaceEventWrapPtr, _ := events.Load(t)
+	if nil != existingInterfaceEventWrapPtr {
+		eventWrap := existingInterfaceEventWrapPtr.(*EventWrap)
+		existing = eventWrap.GetListeners()
+	}
+
+	// 如果 没有获取到事件包裹器 添加
+	if nil == existingInterfaceEventWrapPtr {
+		eventWrap := &EventWrap{
+			name:    t,
+			isOnce:  isOnce,
+			emitted: false,
 		}
+		eventWrap.AddHandler(listener, prepend)
+
+		this.events.Store(t, eventWrap)
+		this.eventsCount += 1
+
 	} else {
-		if prepend {
-			existing = append(append(make([]func(...interface{}), 0), listener), existing...)
-		} else {
-			existing = append(append(make([]func(...interface{}), 0), existing...), listener)
-		}
-		if nil != this.events {
-			this.events.Store(t, existing)
-		}
+		eventWrap := existingInterfaceEventWrapPtr.(*EventWrap)
+		eventWrap.AddHandler(listener, prepend)
 	}
 
 	m := this.GetMaxListeners()
@@ -259,10 +340,11 @@ func (this *EventEmitter) ListenerCount(t string) int {
 
 	if nil != events {
 
-		evlistenerInterface, ok := events.Load(t)
+		evlistenerInterfaceEventWrapPtr, ok := events.Load(t)
 
 		if ok {
-			evlistener := evlistenerInterface.([]func(...interface{}))
+			eventWrap := evlistenerInterfaceEventWrapPtr.(*EventWrap)
+			evlistener := eventWrap.GetListeners()
 			return len(evlistener)
 		} else {
 			return 0
@@ -284,9 +366,10 @@ func (this *EventEmitter) EventNames() []string {
 
 // 只监听一次
 func (this *EventEmitter) Once(t string, listener func(...interface{})) *EventEmitter {
-	return this.addListener(t, this.onceWrap(t, listener), false)
+	return this.addListener(t, listener, false, true)
 }
 
+// 废弃
 func (this *EventEmitter) onceWrap(t string, listener func(...interface{})) func(...interface{}) {
 	return func(args ...interface{}) {
 		this.RemoveListener(t)
@@ -303,7 +386,7 @@ func (this *EventEmitter) RemoveListener(t string) *EventEmitter {
 		return this
 	}
 
-	handlers, ok := events.Load(t)
+	handlersEventWrapPtr, ok := events.Load(t)
 
 	if ok {
 		if (this.eventsCount - 1) == 0 {
@@ -316,7 +399,7 @@ func (this *EventEmitter) RemoveListener(t string) *EventEmitter {
 			this.eventsCount -= 1
 			_, rmOk := events.Load(EVENT_EMITTER_REMOVE_LISTENER_NAME)
 			if rmOk {
-				this.EmitGo(EVENT_EMITTER_REMOVE_LISTENER_NAME, t, handlers)
+				this.EmitGo(EVENT_EMITTER_REMOVE_LISTENER_NAME, t, handlersEventWrapPtr)
 			}
 		}
 	}
@@ -350,19 +433,6 @@ func (this *EventEmitter) SetPrepend(prepend bool) {
 func (this *EventEmitter) GetPrepend() bool {
 	return this.prepend
 }
-
-//
-//func (this *EventEmitter) EnableThreadSafe() {
-//	this.isThreadSafe = true
-//}
-//
-//func (this *EventEmitter) DisableThreadSafe() {
-//	this.isThreadSafe = false
-//}
-//
-//func (this *EventEmitter) IsThreadSafe() bool {
-//	return this.isThreadSafe
-//}
 
 // 销毁
 func (this *EventEmitter) Destory() {

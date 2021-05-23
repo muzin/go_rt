@@ -91,8 +91,10 @@ func TestEventEmitter_Once(t *testing.T) {
 			count++
 		})
 
-		for i := 0; i < 5; i++ {
-			eventemitter.Emit("data", i)
+		for i := 0; i < 50000; i++ {
+			go func() {
+				eventemitter.Emit("data", i)
+			}()
 		}
 
 		if count != except {
