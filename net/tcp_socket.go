@@ -590,7 +590,7 @@ func (this *TCPSocket) Close() {
 		if err == nil {
 			//this.Emit("close", true)
 		} else {
-			// this.EmitGo("error", SocketCloseException.NewThrow(err.Error()))
+			this.EmitGo("error", SocketCloseException.NewThrow(err.Error()))
 		}
 	}
 }

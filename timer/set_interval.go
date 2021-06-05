@@ -12,11 +12,12 @@ var intervalTaskStatusMap = *hash_map.NewHashMap() // map[int64]bool
 
 //
 func SetInterval(cb func() bool, ms int) int64 {
-	id := time.Now().UnixNano()
+	id := ApplyTimerId()
 	intervalTaskStatusMap.Put(id, true)
 	go func() {
 		defer try.CatchUncaughtException(func(throwable try.Throwable) {
-			fmt.Printf("SetInterval Uncaught: %v", throwable)
+			fmt.Printf("SetInterval Uncaught: %v \n%v", throwable)
+			throwable.PrintStackTrace()
 			intervalTaskStatusMap.Remove(id)
 		})()
 

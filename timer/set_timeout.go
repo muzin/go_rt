@@ -14,7 +14,7 @@ var timeoutTaskStatusMap = *hash_map.NewHashMap() // map[int64]bool
 //	@param cb function
 //	@param t ms
 func SetTimeout(cb func(), ms int) int64 {
-	id := time.Now().UnixNano()
+	id := ApplyTimerId()
 
 	timeoutTaskStatusMap.Put(id, true)
 

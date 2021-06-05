@@ -1,6 +1,8 @@
 package timer
 
-import "time"
+import (
+	"time"
+)
 
 // 定时器
 type Timer interface {
@@ -11,6 +13,10 @@ type Timer interface {
 	Destroy()
 
 	Id() int64
+
+	ExpireTimeStamp() int64
+
+	IsOpened() bool
 }
 
 type TimeoutTimer struct {
@@ -22,14 +28,17 @@ type TimeoutTimer struct {
 	delay time.Duration
 
 	timerid int64
+
+	isOpened bool
 }
 
 // 创建 Timeout 定时器
 func NewTimeoutTimer(cb func(), ms int) Timer {
 	delay := time.Duration(ms)
 	timeoutTimer := &TimeoutTimer{
-		handle: cb,
-		delay:  delay,
+		handle:   cb,
+		delay:    delay,
+		isOpened: false,
 	}
 	return timeoutTimer
 }
@@ -42,6 +51,7 @@ func (this *TimeoutTimer) Open() {
 	//if this.timerid > 0 {
 	//	this.Close()
 	//}
+	this.isOpened = true
 	this.openHandle()
 }
 
@@ -54,8 +64,22 @@ func (this *TimeoutTimer) Destroy() {
 	this.handle = nil
 }
 
+func (this *TimeoutTimer) IsOpened() bool {
+	return this.isOpened
+}
+
 func (this *TimeoutTimer) Id() int64 {
 	return this.timerid
+}
+
+// 过期时间
+// -1 永不过期
+func (this *TimeoutTimer) ExpireTimeStamp() int64 {
+	if this.IsOpened() {
+		return this.timerid + int64(this.delay*time.Millisecond)
+	} else {
+		return -1
+	}
 }
 
 type IntervalTimer struct {
@@ -68,6 +92,8 @@ type IntervalTimer struct {
 	delay time.Duration
 
 	timerid int64
+
+	isOpened bool
 }
 
 // 创建定时器
@@ -76,8 +102,9 @@ type IntervalTimer struct {
 func NewIntervalTimer(cb func() bool, ms int) Timer {
 	delay := time.Duration(ms)
 	intervalTimer := &IntervalTimer{
-		handle: cb,
-		delay:  delay,
+		handle:   cb,
+		delay:    delay,
+		isOpened: false,
 	}
 	return intervalTimer
 }
@@ -90,6 +117,7 @@ func (this *IntervalTimer) Open() {
 	//if this.timerid > 0 {
 	//	this.Close()
 	//}
+	this.isOpened = true
 	this.openHandle()
 }
 
@@ -102,6 +130,16 @@ func (this *IntervalTimer) Destroy() {
 	this.handle = nil
 }
 
+func (this *IntervalTimer) IsOpened() bool {
+	return this.isOpened
+}
+
 func (this *IntervalTimer) Id() int64 {
 	return this.timerid
+}
+
+// 过期时间
+// -1 永不过期
+func (this *IntervalTimer) ExpireTimeStamp() int64 {
+	return -1
 }

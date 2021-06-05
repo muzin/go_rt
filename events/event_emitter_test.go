@@ -3,7 +3,6 @@ package events
 import (
 	"fmt"
 	"github.com/muzin/go_rt/try"
-	"strconv"
 	"testing"
 )
 
@@ -37,15 +36,15 @@ func TestEventEmitter_On(t *testing.T) {
 			fmt.Printf("error %v\n", err)
 		})
 
-		except := 4
+		except := 10000000
 		count := 0
 		eventemitter.On("data", func(args ...interface{}) {
-			t.Logf("args: %v", args)
+			//t.Logf("args: %v", args)
 			count++
 
-			if count > 1 {
-				try.Throw(try.UnhandledError.NewThrow("index: " + strconv.Itoa(count) + " exist unhandled error"))
-			}
+			//if count > 1 {
+			//	try.Throw(try.UnhandledError.NewThrow("index: " + strconv.Itoa(count) + " exist unhandled error"))
+			//}
 
 		})
 
