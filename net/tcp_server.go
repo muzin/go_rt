@@ -39,8 +39,10 @@ type TCPServer struct {
 	connections int
 
 	// 使用 协程
+	// @Deprecated
 	usingWorkers bool
 
+	// @Deprecated
 	allowHalfOpen bool
 
 	// 暂停 监听 连接
@@ -124,15 +126,14 @@ func (this *TCPServer) Listen(args ...interface{}) {
 	// 加入 服务结束等待组中
 	GetSocketWaitGroup("tcp_server Listen() WaitGroup add 1").Add(1)
 
-	go func() {
-		time.Sleep(10 * time.Millisecond)
-		// 发送 监听事件
-		this.EmitGo("listen", network, address)
-	}()
-
 	this.Listener = server
 	// 处理 连接
 	go this.ConnectHandle()
+
+	go func() {
+		// 发送 监听事件
+		this.EmitGo("listen", network, address)
+	}()
 
 }
 
@@ -201,7 +202,7 @@ func (this *TCPServer) OnListen(listener func(...interface{})) {
 
 // OnConnect
 //
-// @param listener func(socket net.Conn)
+// @param listener func(socket net.Socket)
 //
 func (this *TCPServer) OnConnect(listener func(...interface{})) {
 	this.On("connect", listener)
@@ -218,6 +219,7 @@ func (this *TCPServer) OnEnd(listener func(...interface{})) {
 }
 
 // 监听 error 事件
+// // @param listener func(throwable try.throwable)
 func (this *TCPServer) OnError(listener func(...interface{})) {
 	this.On("error", listener)
 }

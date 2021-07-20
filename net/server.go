@@ -13,6 +13,7 @@ type Server interface {
 
 	ConnectHandle()
 
+	// listener func(network string, address string)
 	OnListen(listener func(...interface{}))
 
 	OnConnect(listener func(...interface{}))
