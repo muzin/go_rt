@@ -122,6 +122,7 @@ func (this *TCPSocket) Init() {
 	this.readyState = ""
 	this.inited = false
 	this.suspend = false
+	this.waitClose = false
 	this.closed = false
 
 	this.pending = true
@@ -156,14 +157,20 @@ func (this *TCPSocket) Init() {
 	this.On("error", func(...interface{}) {})
 
 	this.Once("connect", func(...interface{}) {
+		this.pending = false
 		this.connecting = true
+		this.updateReadyStatus()
 	})
 
 	this.Once("writeChannelFinished", func(...interface{}) {
 		this.writeChannelFinished = true
+		//当写通道结束后，进行关闭操作
+		this.closeWriteChannel()
 	})
 	this.Once("readChannelFinished", func(...interface{}) {
 		this.readChannelFinished = true
+		//当写通道结束后，进行关闭操作
+		this.closeReadChannel()
 	})
 
 	// 监听 内部 超时事件
@@ -182,10 +189,6 @@ func (this *TCPSocket) Init() {
 
 	// 默认关闭事件
 	this.Once("close", func(...interface{}) {
-		// 如果已关闭，不在向下执行
-		//if this.writeChannelClosed && this.readChannelClosed {
-		//	return
-		//}
 
 		// 设置 关闭 状态
 		this.SetCloseStatus()
@@ -273,13 +276,15 @@ func (this *TCPSocket) ConnectHandle() {
 	buf := make([]byte, this.GetBufferSize())
 
 	for {
-		if !(this.suspend || this.waitClose) {
-			func() {
+		if !this.suspend {
+			var isContinue = func() bool {
+				var isContinue = true
 				// 捕获异常， 发送error事件
 				defer try.CatchUncaughtException(func(throwable try.Throwable) {
 					this.Emit("error", throwable)
 					// 有错误 关闭 连接
 					//this.Close()
+					isContinue = false
 				})()
 
 				// 如果有超时时间，设置超时时间
@@ -292,19 +297,20 @@ func (this *TCPSocket) ConnectHandle() {
 				if err != nil {
 					//this.suspend = true   // 暂停
 					//this.destroyed = true // 销毁
-					//fmt.Println("tcp_socket read error: %s", err)
 
 					// 当 读取出现异常 将 等待关闭状态 设置为 true， 仅读，不可写
 					this.waitClose = true // 等待关闭
-
-					this.closeReadChannel()
-					this.closeWriteChannel()
 
 					this.readChannel <- ByteWrap{
 						t:     CloseByteWrap,
 						bytes: []byte(err.Error()),
 					}
 
+					this.writeChannel <- ByteWrap{
+						t:     CloseByteWrap,
+						bytes: []byte(err.Error()),
+					}
+					isContinue = false
 				} else {
 					//this.Emit("data", buf[0:cnt])
 					// 将 数据 写入 读缓冲区
@@ -316,7 +322,12 @@ func (this *TCPSocket) ConnectHandle() {
 						}
 					}
 				}
+
+				return isContinue
 			}()
+			if !isContinue {
+				break
+			}
 		} else {
 			if this.closed == false {
 				time.Sleep(50 * time.Millisecond)
@@ -329,19 +340,26 @@ func (this *TCPSocket) ConnectHandle() {
 
 // 读 错误处理
 func (this *TCPSocket) readErrorHandler(err error) {
+	errStr := err.Error()
 
-	if str.EndsWith(err.Error(), "use of closed network connection") { // 连接 被拒绝
+	if str.EndsWith(errStr, "use of closed network connection") { // 连接 被拒绝
 		this.Emit("close", true) // 主动关闭
-	} else if err.Error() == "EOF" { // 结束
+
+	} else if errStr == "EOF" { // 结束
 		this.Emit("close", false) // 被动关闭
-	} else if str.StartsWith(err.Error(), "read ") &&
-		str.EndsWith(err.Error(), " i/o timeout") { // 读超时
-		this.Emit("_timeout", "read")
-	} else if str.StartsWith(err.Error(), "write ") &&
-		str.EndsWith(err.Error(), " i/o timeout") { // 写超时
-		this.Emit("_timeout", "write")
+
+	} else if str.StartsWith(errStr, "read ") &&
+		str.EndsWith(errStr, " i/o timeout") { // 读超时
+		this.Emit("_timeout", errStr)
+
+	} else if str.StartsWith(errStr, "write ") &&
+		str.EndsWith(errStr, " i/o timeout") { // 写超时
+		this.Emit("_timeout", errStr)
+
 	} else { // 其他异常
-		try.Throw(SocketReadException.NewThrow(err.Error()))
+		this.Emit("error", SocketReadException.NewThrow(errStr))
+		this.Emit("close", true)
+
 	}
 
 }
@@ -364,7 +382,7 @@ func (this *TCPSocket) Write(args ...interface{}) int {
 	}
 
 	// 如果 没有（写通道关闭/进入等待状态）则 加入到 写缓冲区
-	if !(this.writeChannelClosed || this.waitClose) {
+	if !(this.writeChannelFinished || this.writeChannelClosed || this.waitClose) {
 		bytes := data[index:(index + length)]
 		this.writeChannel <- ByteWrap{
 			t:     WriteByteWrap,
@@ -407,38 +425,35 @@ func (this *TCPSocket) writeConsumer() {
 		}
 
 		// 如果 连接中/没有暂停/没有等待关闭 将继续执行
-		if this.connecting && !this.suspend && !this.waitClose {
+		if this.connecting && !this.suspend {
 			dataWrap, isOpen := <-this.writeChannel
 			if isOpen {
 				if !this.closed {
+					wrapType := dataWrap.t
 					data := dataWrap.bytes
-					_, err := this.write(data)
-					if nil != err {
-						for v := range this.writeChannel {
-							func(v ByteWrap) {}(v)
-						}
+
+					if wrapType == CloseByteWrap {
+						// 发送 写通道关闭事件
 						this.Emit("writeChannelFinished")
 						break
+					} else if wrapType == WriteByteWrap {
+						if !this.waitClose {
+							_, err := this.write(data)
+							if nil != err {
+								this.Emit("error", SocketWriteException.NewThrow(err.Error()))
+							}
+						}
 					}
 				} else {
-					for v := range this.writeChannel {
-						func(v ByteWrap) {}(v)
-					}
-					this.Emit("writeChannelFinished")
 					break
 				}
 			} else {
-				this.Emit("writeChannelFinished")
 				break
 			}
 		} else {
 			if this.closed == false {
 				time.Sleep(10 * time.Millisecond)
 			} else {
-				for v := range this.writeChannel {
-					func(v ByteWrap) {}(v)
-				}
-				this.Emit("writeChannelFinished")
 				break
 			}
 		}
@@ -462,29 +477,23 @@ func (this *TCPSocket) readConsumer() {
 					data := dataWrap.bytes
 					if byteWrapType == CloseByteWrap { // 如果是关闭Wrap
 						err := errors.New(string(data))
+						// 发送 写通道关闭事件
+						this.Emit("readChannelFinished")
 						this.readErrorHandler(err)
+						break
 					} else if byteWrapType == ReadByteWrap { // 如果是读取Wrap
 						this.Emit("data", data)
 					}
 				} else {
-					for v := range this.readChannel {
-						func(v ByteWrap) {}(v)
-					}
-					this.Emit("readChannelFinished")
 					break
 				}
 			} else {
-				this.Emit("readChannelFinished")
 				break
 			}
 		} else {
 			if this.closed == false {
 				time.Sleep(10 * time.Millisecond)
 			} else {
-				for v := range this.readChannel {
-					func(v ByteWrap) {}(v)
-				}
-				this.Emit("readChannelFinished")
 				break
 			}
 		}
