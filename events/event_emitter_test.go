@@ -22,7 +22,7 @@ func TestEventEmitter_On(t *testing.T) {
 	t.Run("测试 EventTmitter On", func(t *testing.T) {
 
 		try.CatchUncaughtException(func(err try.Throwable) {
-			fmt.Errorf("UnhandledError: %v", err)
+			fmt.Errorf("UnhandledError: %v", err.GetStackTrace())
 		})
 
 		eventemitter := NewEventEmitter()
@@ -74,7 +74,7 @@ func TestEventEmitter_Once(t *testing.T) {
 	t.Run("测试 EventTmitter Once", func(t *testing.T) {
 
 		try.CatchUncaughtException(func(err try.Throwable) {
-			fmt.Errorf("UnhandledError: %v", err)
+			fmt.Errorf("UnhandledError: %v", err.GetStackTrace())
 		})
 
 		eventemitter := NewEventEmitter()

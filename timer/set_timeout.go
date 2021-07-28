@@ -21,6 +21,7 @@ func SetTimeout(cb func(), ms int) int64 {
 	go func() {
 		defer try.CatchUncaughtException(func(throwable try.Throwable) {
 			fmt.Printf("SetTimeout Uncaught: %v", throwable)
+			throwable.PrintStackTrace()
 			timeoutTaskStatusMap.Remove(id)
 		})()
 
