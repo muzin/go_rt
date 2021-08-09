@@ -611,10 +611,6 @@ func (this *TCPSocket) RemoteAddr() net.Addr {
 }
 
 func (this *TCPSocket) Close() {
-	if this.closed {
-		return
-	}
-	this.closed = true
 	if this.Conn != nil {
 		err := this.Conn.Close()
 		if err == nil {
