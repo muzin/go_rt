@@ -60,11 +60,18 @@ func (this *TLSSocket) Connect(args ...interface{}) {
 	this.SetOpenStatus()
 
 	this.Conn = conn
+
 	go this.ConnectHandle()
+
 	this.Emit("connect", this)
 }
 
 func (this *TLSSocket) Reconnect() {
+
+	if this.Conn != nil {
+		this.Conn.Close()
+	}
+
 	this.TCPSocket.Init()
 	this.init()
 
@@ -76,7 +83,7 @@ func (this *TLSSocket) Reconnect() {
 }
 
 func (this *TLSSocket) Destroy() {
-	this.TCPSocket.Destory()
+
 }
 
 // connect(port [, host [, options]])

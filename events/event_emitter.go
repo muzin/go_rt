@@ -389,7 +389,7 @@ func (this *EventEmitter) RemoveListener(t string) *EventEmitter {
 	handlersEventWrapPtr, ok := events.Load(t)
 
 	if ok {
-		if (this.eventsCount - 1) == 0 {
+		if (this.eventsCount - 1) <= 0 {
 			//this.events = make(map[string][]func(...interface{}))
 			this.events = &sync.Map{}
 			this.eventsCount = 0
@@ -411,17 +411,38 @@ func (this *EventEmitter) RemoveListener(t string) *EventEmitter {
 func (this *EventEmitter) RemoveAllListener() *EventEmitter {
 
 	events := this.events
+
+	this.events = &sync.Map{}
+	this.eventsCount = 0
+
 	if nil != events {
 		eventNames := this.EventNames()
 		for i := 0; i < len(eventNames); i++ {
 			eventName := eventNames[i]
 			events.Delete(eventName)
 		}
-		this.events = nil
 	}
 
-	this.events = &sync.Map{}
-	this.eventsCount = 0
+	return this
+}
+
+// 移除事件
+func (this *EventEmitter) ResetOnce() *EventEmitter {
+
+	events := this.events
+	if nil != events {
+		eventNames := this.EventNames()
+		for i := 0; i < len(eventNames); i++ {
+			eventName := eventNames[i]
+			evlistenerInterfaceEventWrapPtr, ok := events.Load(eventName)
+
+			if ok {
+				eventWrap := evlistenerInterfaceEventWrapPtr.(*EventWrap)
+				eventWrap.emitted = false
+				eventWrap.emitcount = 0
+			}
+		}
+	}
 
 	return this
 }
@@ -436,17 +457,5 @@ func (this *EventEmitter) GetPrepend() bool {
 
 // 销毁
 func (this *EventEmitter) Destory() {
-
-	this.eventsCount = 0
-	this.maxListeners = 0
-	this.prepend = false
-	if nil != this.events {
-		eventNames := this.EventNames()
-		for i := 0; i < len(eventNames); i++ {
-			eventName := eventNames[i]
-			this.events.Delete(eventName)
-		}
-		this.events = nil
-	}
 
 }

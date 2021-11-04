@@ -229,10 +229,6 @@ func (this *TCPSocket) Connect(args ...interface{}) {
 		this.host = args[1].(string)
 	}
 
-	//if this.Conn != nil {
-	//	return
-	//}
-
 	this.SetOpeningStatus()
 
 	network := "tcp"
@@ -241,11 +237,19 @@ func (this *TCPSocket) Connect(args ...interface{}) {
 	// 在 SocketWaitGroup 中标记 进行中
 	GetSocketWaitGroup("tcp_socket Connect() WaitGroup add 1").Add(1)
 
-	conn, err := net.Dial(network, address)
-	if err != nil {
-		this.Emit("error", SocketConnectException.NewThrow(err.Error()))
-		this.Emit("close", true)
-		return
+	var conn net.Conn
+	var err error
+	for {
+		conn, err = net.Dial(network, address)
+		if err != nil {
+			this.Emit("error", SocketConnectException.NewThrow(err.Error()))
+			//this.Emit("close", true)
+			//return
+
+			time.Sleep(5 * time.Second)
+		} else {
+			break
+		}
 	}
 
 	this.SetOpenStatus()
@@ -261,6 +265,10 @@ func (this *TCPSocket) Connect(args ...interface{}) {
 // 重连
 func (this *TCPSocket) Reconnect() {
 	//this.SetCloseStatus()
+	if this.Conn != nil {
+		this.Conn.Close()
+	}
+
 	this.Init()
 
 	GetSocketWaitGroup("tcp_socket Reconnect() Connect WaitGroup add 1").Add(1)
@@ -301,14 +309,17 @@ func (this *TCPSocket) ConnectHandle() {
 					// 当 读取出现异常 将 等待关闭状态 设置为 true， 仅读，不可写
 					this.waitClose = true // 等待关闭
 
-					this.readChannel <- ByteWrap{
-						t:     CloseByteWrap,
-						bytes: []byte(err.Error()),
+					if !this.readChannelClosed {
+						this.readChannel <- ByteWrap{
+							t:     CloseByteWrap,
+							bytes: []byte(err.Error()),
+						}
 					}
-
-					this.writeChannel <- ByteWrap{
-						t:     CloseByteWrap,
-						bytes: []byte(err.Error()),
+					if !this.writeChannelClosed {
+						this.writeChannel <- ByteWrap{
+							t:     CloseByteWrap,
+							bytes: []byte(err.Error()),
+						}
 					}
 					isContinue = false
 				} else {
@@ -734,6 +745,13 @@ func (this *TCPSocket) SetHost(host string) {
 
 func (this *TCPSocket) GetHost() string {
 	return this.host
+}
+
+// note that I assume connection will not ignore nil slice.
+// this might be untrue and thus simple error handling remains.
+func (this *TCPSocket) IsConnected() bool {
+	_, err := this.Conn.Write(nil)
+	return err == nil
 }
 
 // 重新加载声明过的事件

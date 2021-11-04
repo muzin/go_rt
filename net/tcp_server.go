@@ -294,9 +294,5 @@ func (this *TCPServer) GetHost() string {
 
 // 销毁
 func (this *TCPServer) Destroy() {
-	go func() {
-		this.EventEmitter.Destory()
-		this.Listener = nil
-		this.newSocketHandle = nil
-	}()
+
 }

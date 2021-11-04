@@ -75,6 +75,9 @@ type Socket interface {
 	// 暂停
 	Pause()
 
+	// 是否连接
+	IsConnected() bool
+
 	// 设置 流 超时时间
 	SetStreamTimeout(msecs int)
 

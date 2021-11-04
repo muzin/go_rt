@@ -8,6 +8,7 @@ import (
 )
 
 // 抛异常
+//
 // @param err *Exception 异常 对象
 func Throw(err Throwable) {
 	panic(err)

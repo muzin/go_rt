@@ -70,7 +70,5 @@ func (this *TLSServer) Listen(args ...interface{}) {
 }
 
 func (this *TLSServer) Destroy() {
-	go func() {
-		this.TCPServer.Destory()
-	}()
+
 }
