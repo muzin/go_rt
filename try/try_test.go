@@ -1,6 +1,7 @@
 package try
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -132,6 +133,56 @@ func TestThrowAndTryCatchUncaughtException(t *testing.T) {
 
 		})()
 		Throw(BLogicException.NewThrow("Exception three"))
+
+	})
+}
+
+func TestTryCatchesException(t *testing.T) {
+	t.Run("TestTryCatchesException", func(t *testing.T) {
+
+		var BLogicException = DeclareLogicException("BLogicException")
+
+		now := time.Now()
+
+		catched := false
+
+		Try(func() {
+
+			fmt.Println("Hello World!")
+
+			panic(errors.New("123"))
+
+			//Throw(BLogicException.NewThrow("Exception three"))
+
+		},
+			Catch(BLogicException, func(err Throwable) {
+				err.PrintStackTrace()
+				catched = true
+
+				since := time.Since(now)
+				t.Logf("BLogicException 捕获异常 耗时：%v", since)
+
+				if catched == false {
+					t.Logf("catched not")
+				} else {
+					t.Logf("catched")
+				}
+
+			}),
+			CatchUncaughtException(func(err Throwable) {
+				err.PrintStackTrace()
+				catched = true
+
+				since := time.Since(now)
+				t.Logf("UncaughtException 捕获异常 耗时：%v", since)
+
+				if catched == false {
+					t.Logf("catched not")
+				} else {
+					t.Logf("catched")
+				}
+
+			}))
 
 	})
 }

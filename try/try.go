@@ -54,6 +54,17 @@ func CatchUncaughtException(cb func(Throwable)) func() {
 	}
 }
 
+// 尝试捕获作用域中的异常，指定处理方法
+//
+// catches 使用 `Catch(err Throwable, cb func(Throwable))`
+//
+func Try(scope func(), catches ...func()) {
+	for i := (len(catches) - 1); i >= 0; i-- {
+		defer (catches[i])()
+	}
+	scope()
+}
+
 // 打印堆栈信息
 func getStackTrace(err interface{}) string {
 	buf := new(bytes.Buffer)
