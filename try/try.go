@@ -56,7 +56,7 @@ func CatchUncaughtException(cb func(Throwable)) func() {
 
 // 尝试捕获作用域中的异常，指定处理方法
 //
-// catches 使用 `Catch(err Throwable, cb func(Throwable))`
+// @param catches 必须使用 `Catch(err Throwable, cb func(Throwable))` 或者 `CatchUncaughtException(cb func(Throwable))`
 //
 func Try(scope func(), catches ...func()) {
 	for i := (len(catches) - 1); i >= 0; i-- {
