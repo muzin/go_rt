@@ -35,6 +35,7 @@ func TestSetInterval(t *testing.T) {
 		wg.Wait()
 
 		ClearInterval(timer)
+		ClearInterval(timer)
 
 	})
 }

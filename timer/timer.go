@@ -29,6 +29,8 @@ type TimeoutTimer struct {
 
 	timerid int64
 
+	ticker *time.Ticker
+
 	isOpened bool
 }
 
@@ -44,24 +46,23 @@ func NewTimeoutTimer(cb func(), ms int) Timer {
 }
 
 func (this *TimeoutTimer) openHandle() {
-	this.timerid = SetTimeout(this.handle, int(this.delay))
+	this.timerid = ApplyTimerId()
+	this.ticker = SetTimeout(this.handle, int(this.delay))
 }
 
 func (this *TimeoutTimer) Open() {
-	//if this.timerid > 0 {
-	//	this.Close()
-	//}
 	this.isOpened = true
 	this.openHandle()
 }
 
 func (this *TimeoutTimer) Close() {
-	ClearTimeout(this.timerid)
+	ClearTimeout(this.ticker)
 }
 
 func (this *TimeoutTimer) Destroy() {
 	this.Close()
 	this.handle = nil
+	this.ticker = nil
 }
 
 func (this *TimeoutTimer) IsOpened() bool {
@@ -93,6 +94,8 @@ type IntervalTimer struct {
 
 	timerid int64
 
+	ticker *time.Ticker
+
 	isOpened bool
 }
 
@@ -110,7 +113,8 @@ func NewIntervalTimer(cb func() bool, ms int) Timer {
 }
 
 func (this *IntervalTimer) openHandle() {
-	this.timerid = SetInterval(this.handle, int(this.delay))
+	this.timerid = ApplyTimerId()
+	this.ticker = SetInterval(this.handle, int(this.delay))
 }
 
 func (this *IntervalTimer) Open() {
@@ -122,12 +126,13 @@ func (this *IntervalTimer) Open() {
 }
 
 func (this *IntervalTimer) Close() {
-	ClearInterval(this.timerid)
+	ClearInterval(this.ticker)
 }
 
 func (this *IntervalTimer) Destroy() {
 	this.Close()
 	this.handle = nil
+	this.ticker = nil
 }
 
 func (this *IntervalTimer) IsOpened() bool {

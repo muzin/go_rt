@@ -36,7 +36,7 @@ func TestSannerColorRange(t *testing.T) {
 
 		var str string = "Hello World."
 		var color = 30
-		for i := color; i < 1000; i++ {
+		for i := color; i < 115; i++ {
 			sprintf := fmt.Sprintf("\x1b[0;%dm%s%s\x1b[0m", i, str, strconv.Itoa(i))
 			fmt.Println(sprintf)
 		}

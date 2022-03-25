@@ -9,6 +9,17 @@ func TestSetTimeout(t *testing.T) {
 
 	t.Run("Test 设置定时器", func(t *testing.T) {
 
+		//tickTimer := time.NewTicker(1 * time.Second)
+		//barTimer := time.NewTicker(5 * time.Second)
+		//for {
+		//	select {
+		//	case <-tickTimer.C:
+		//		fmt.Println("tick")
+		//	case <-barTimer.C:
+		//		fmt.Println("bar")
+		//	}
+		//}
+
 		var wg sync.WaitGroup
 
 		wg.Add(1)
