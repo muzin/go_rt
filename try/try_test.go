@@ -1,7 +1,6 @@
 package try
 
 import (
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -150,9 +149,9 @@ func TestTryCatchesException(t *testing.T) {
 
 			fmt.Println("Hello World!")
 
-			panic(errors.New("123"))
+			//panic(errors.New("123"))
 
-			//Throw(BLogicException.NewThrow("Exception three"))
+			Throw(BLogicException.NewThrow("Exception three"))
 
 		},
 			Catch(BLogicException, func(err Throwable) {

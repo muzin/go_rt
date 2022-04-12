@@ -7,14 +7,14 @@ import (
 	"unicode"
 )
 
-// 判断字符串是否不是空白
+// IsNotBlank 判断字符串是否不是空白
 //
 // @return bool
 func IsNotBlank(str string) bool {
 	return !IsBlank(str)
 }
 
-// 判断字符串是否是空白
+// IsBlank 判断字符串是否是空白
 //
 // @return bool
 func IsBlank(str string) bool {
@@ -32,14 +32,14 @@ func IsBlank(str string) bool {
 	}
 }
 
-// 判断字符串是否是空
+// IsEmpty 判断字符串是否是空
 //
 // @return bool
 func IsEmpty(str string) bool {
 	return len(str) == 0
 }
 
-// 判断字符串是否不是空
+// IsNotEmpty  判断字符串是否不是空
 //
 // @return bool
 func IsNotEmpty(str string) bool {
@@ -73,8 +73,10 @@ func EndsWith(s string, substr string) bool {
 }
 
 // Strval 获取变量的字符串值
+//
 // 浮点型 3.0将会转换成字符串3, "3"
 // 非数值或字符类型的变量将会被转换成JSON格式字符串
+//
 func Strval(value interface{}) string {
 	// interface 转 string
 	var key string
