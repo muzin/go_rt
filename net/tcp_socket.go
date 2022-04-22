@@ -814,8 +814,6 @@ func newSocketForServer(conn net.Conn) *TCPSocket {
 	s.setOpeningStatusForCreateSocket()
 	s.SetOpenStatus()
 
-	go s.ConnectHandle()
-
 	return s
 }
 
