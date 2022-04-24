@@ -443,17 +443,17 @@ func (this *TCPSocket) writeConsumer() {
 					wrapType := dataWrap.t
 					data := dataWrap.bytes
 
-					if wrapType == CloseByteWrap {
-						// 发送 写通道关闭事件
-						this.Emit("writeChannelFinished")
-						break
-					} else if wrapType == WriteByteWrap {
+					if wrapType == WriteByteWrap {
 						if !this.waitClose {
 							_, err := this.write(data)
 							if nil != err {
 								this.Emit("error", SocketWriteException.NewThrow(err.Error()))
 							}
 						}
+					} else if wrapType == CloseByteWrap {
+						// 发送 写通道关闭事件
+						this.Emit("writeChannelFinished")
+						break
 					}
 				} else {
 					break
@@ -486,14 +486,14 @@ func (this *TCPSocket) readConsumer() {
 				if this.closed == false {
 					byteWrapType := dataWrap.t
 					data := dataWrap.bytes
-					if byteWrapType == CloseByteWrap { // 如果是关闭Wrap
+					if byteWrapType == ReadByteWrap { // 如果是读取Wrap
+						this.Emit("data", data)
+					} else if byteWrapType == CloseByteWrap { // 如果是关闭Wrap
 						err := errors.New(string(data))
 						// 发送 写通道关闭事件
 						this.Emit("readChannelFinished")
 						this.readErrorHandler(err)
 						break
-					} else if byteWrapType == ReadByteWrap { // 如果是读取Wrap
-						this.Emit("data", data)
 					}
 				} else {
 					break
