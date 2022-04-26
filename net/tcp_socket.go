@@ -326,7 +326,7 @@ func (this *TCPSocket) ConnectHandle() {
 					//this.Emit("data", buf[0:cnt])
 					// 将 数据 写入 读缓冲区
 					if !this.readChannelClosed {
-						var bytes = append(make([]byte, 0), buf[0:cnt]...)
+						var bytes = append([]byte(nil), buf[0:cnt]...)
 						this.readChannel <- ByteWrap{
 							t:     ReadByteWrap,
 							bytes: bytes,
@@ -394,7 +394,7 @@ func (this *TCPSocket) Write(args ...interface{}) int {
 
 	// 如果 没有（写通道关闭/进入等待状态）则 加入到 写缓冲区
 	if !(this.writeChannelFinished || this.writeChannelClosed || this.waitClose) {
-		bytes := data[index:(index + length)]
+		bytes := append([]byte(nil), data[index:(index+length)]...)
 		this.writeChannel <- ByteWrap{
 			t:     WriteByteWrap,
 			bytes: bytes,
