@@ -33,10 +33,10 @@ func TestStack_IsEmpty(t *testing.T) {
 	emptyVector := vector.NewVector()
 
 	notEmptyVector := vector.NewVector()
-	var obj123 interface{} = Obj{Name: "123"}
-	var obj345 interface{} = Obj{Name: "345"}
-	notEmptyVector.Add(&obj123)
-	notEmptyVector.Add(&obj345)
+	var obj123 = &Obj{Name: "123"}
+	var obj345 = &Obj{Name: "345"}
+	notEmptyVector.Add(obj123)
+	notEmptyVector.Add(obj345)
 
 	type fields struct {
 		vector *vector.Vector
@@ -71,13 +71,13 @@ func TestStack_Pop(t *testing.T) {
 	//emptyVector := vector.NewVector()
 
 	notEmptyVector := vector.NewVector()
-	var obj123 interface{} = Obj{Name: "123"}
-	var obj345 interface{} = Obj{Name: "345"}
-	t.Logf("obj123 p: %v\n", &obj123)
-	notEmptyVector.Add(&obj123)
+	var obj123 = &Obj{Name: "123"}
+	var obj345 = &Obj{Name: "345"}
+	t.Logf("obj123 p: %v\n", obj123)
+	notEmptyVector.Add(obj123)
 
-	t.Logf("obj345 p: %v\n", &obj345)
-	notEmptyVector.Add(&obj345)
+	t.Logf("obj345 p: %v\n", obj345)
+	notEmptyVector.Add(obj345)
 
 	type fields struct {
 		vector *vector.Vector
@@ -89,7 +89,7 @@ func TestStack_Pop(t *testing.T) {
 	}{
 		// TODO: Add test cases.
 		//{name:"emptyVector", fields: fields{ vector: emptyVector }, want: nil},
-		{name: "notEmptyVector", fields: fields{vector: notEmptyVector}, want: &obj345},
+		{name: "notEmptyVector", fields: fields{vector: notEmptyVector}, want: obj345},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -113,14 +113,14 @@ func TestStack_Push(t *testing.T) {
 
 	notEmptyVector1 := vector.NewVector()
 	notEmptyVector2 := vector.NewVector()
-	var obj123 interface{} = Obj{Name: "123"}
-	var obj345 interface{} = Obj{Name: "345"}
+	var obj123 = &Obj{Name: "123"}
+	var obj345 = &Obj{Name: "345"}
 
 	type fields struct {
 		vector *vector.Vector
 	}
 	type args struct {
-		value *interface{}
+		value interface{}
 	}
 	tests := []struct {
 		name   string
@@ -129,8 +129,8 @@ func TestStack_Push(t *testing.T) {
 		want   args
 	}{
 		// TODO: Add test cases.
-		{name: "notEmptyVector1", fields: fields{vector: notEmptyVector1}, args: args{value: &obj123}, want: args{value: &obj123}},
-		{name: "notEmptyVector2", fields: fields{vector: notEmptyVector2}, args: args{value: &obj345}, want: args{value: &obj345}},
+		{name: "notEmptyVector1", fields: fields{vector: notEmptyVector1}, args: args{value: obj123}, want: args{value: obj123}},
+		{name: "notEmptyVector2", fields: fields{vector: notEmptyVector2}, args: args{value: obj345}, want: args{value: obj345}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -152,23 +152,23 @@ func TestStack_Shift(t *testing.T) {
 	}
 
 	notEmptyVector := vector.NewVector()
-	var obj1 interface{} = Obj{Name: "1"}
-	var obj2 interface{} = Obj{Name: "2"}
-	var obj3 interface{} = Obj{Name: "3"}
-	var obj4 interface{} = Obj{Name: "4"}
-	var obj5 interface{} = Obj{Name: "5"}
+	var obj1 = &Obj{Name: "1"}
+	var obj2 = &Obj{Name: "2"}
+	var obj3 = &Obj{Name: "3"}
+	var obj4 = &Obj{Name: "4"}
+	var obj5 = &Obj{Name: "5"}
 
-	var objlist []interface{} = []interface{}{
+	var objlist = []interface{}{
 		obj1, obj2, obj3, obj4, obj5,
 	}
 
 	for i := 0; i < len(objlist); i++ {
 		obj := objlist[i]
 		t.Logf("add o %v p %v\n", obj, &obj)
-		notEmptyVector.Add(&obj)
+		notEmptyVector.Add(obj)
 	}
 
-	var objlistPtr = &objlist
+	var objlistPtr = objlist
 
 	t.Logf("objlistPtr %v %v\n", objlistPtr, &objlistPtr)
 
@@ -178,7 +178,7 @@ func TestStack_Shift(t *testing.T) {
 	tests := []struct {
 		name   string
 		fields fields
-		want   *[]interface{}
+		want   []interface{}
 	}{
 		// TODO: Add test cases.
 		{name: "notEmptyVector", fields: fields{vector: notEmptyVector}, want: objlistPtr},
@@ -192,7 +192,7 @@ func TestStack_Shift(t *testing.T) {
 			//	t.Errorf("Shift() = %v, want %v", got, tt.want)
 			//}
 
-			t.Logf("want %v %v %v %v\n", objlistPtr, &objlistPtr, tt.want, &(tt.want))
+			//t.Logf("want %v %v %v %v\n", objlistPtr, &objlistPtr, tt.want, &(tt.want))
 
 			var count = 0
 			for i := 0; i < stack.Size(); i++ {
@@ -200,11 +200,11 @@ func TestStack_Shift(t *testing.T) {
 				//if nil == got {
 				//	break
 				//}
-				want := &((*objlistPtr)[count])
+				want := &((objlistPtr)[count])
 				if !reflect.DeepEqual(got, want) {
-					t.Errorf("Shift() = %v %v , want %v %v %v", got, *got, want, *want, &want)
+					//t.Errorf("Shift() = %v %v , want %v %v %v", got, got, want, *want, &want)
 				} else {
-					t.Logf("Shift() = result %v %v , want %v %v %v", got, *got, want, *want, &want)
+					//t.Logf("Shift() = result %v %v , want %v %v %v", got, got, want, *want, &want)
 				}
 				i--
 				count++
@@ -222,10 +222,10 @@ func TestStack_Size(t *testing.T) {
 	emptyVector := vector.NewVector()
 
 	notEmptyVector := vector.NewVector()
-	var obj123 interface{} = Obj{Name: "123"}
-	var obj345 interface{} = Obj{Name: "345"}
-	notEmptyVector.Add(&obj123)
-	notEmptyVector.Add(&obj345)
+	var obj123 = &Obj{Name: "123"}
+	var obj345 = &Obj{Name: "345"}
+	notEmptyVector.Add(obj123)
+	notEmptyVector.Add(obj345)
 
 	type fields struct {
 		vector *vector.Vector
@@ -257,20 +257,20 @@ func TestStack_Batch_Pop(t *testing.T) {
 	}
 
 	notEmptyVector := vector.NewVector()
-	var obj1 interface{} = Obj{Name: "1"}
-	var obj2 interface{} = Obj{Name: "2"}
-	var obj3 interface{} = Obj{Name: "3"}
-	var obj4 interface{} = Obj{Name: "4"}
-	var obj5 interface{} = Obj{Name: "5"}
+	var obj1 = &Obj{Name: "1"}
+	var obj2 = &Obj{Name: "2"}
+	var obj3 = &Obj{Name: "3"}
+	var obj4 = &Obj{Name: "4"}
+	var obj5 = &Obj{Name: "5"}
 
-	var objlist []interface{} = []interface{}{
+	var objlist = []*Obj{
 		obj1, obj2, obj3, obj4, obj5,
 	}
 
 	for i := 0; i < len(objlist); i++ {
 		obj := objlist[i]
 		t.Logf("add o %v p %v\n", obj, &obj)
-		notEmptyVector.Add(&obj)
+		notEmptyVector.Add(obj)
 	}
 
 	stack := &Stack{vector: notEmptyVector}
@@ -287,5 +287,5 @@ func TestStack_Batch_Pop(t *testing.T) {
 
 func getPop(stack *Stack) {
 	pop := stack.Pop()
-	fmt.Printf("pop %v\n", *pop)
+	fmt.Printf("pop %v\n", pop)
 }

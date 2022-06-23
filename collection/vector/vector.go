@@ -4,6 +4,7 @@ import (
 	"github.com/muzin/go_rt/lang/err"
 	"github.com/muzin/go_rt/system"
 	"github.com/muzin/go_rt/try"
+	"strconv"
 	"sync"
 )
 
@@ -13,7 +14,7 @@ const (
 )
 
 type Vector struct {
-	mu sync.Mutex
+	mu sync.RWMutex
 
 	elementData []interface{}
 
@@ -85,22 +86,22 @@ func (this *Vector) hugeCapacity(minCapacity int) int {
 }
 
 func (this *Vector) Capacity() int {
-	this.mu.Lock()
-	defer this.mu.Unlock()
+	this.mu.RLock()
+	defer this.mu.RUnlock()
 
 	return len(this.elementData)
 }
 
 func (this *Vector) Size() int {
-	this.mu.Lock()
-	defer this.mu.Unlock()
+	this.mu.RLock()
+	defer this.mu.RUnlock()
 
 	return this.elementCount
 }
 
 func (this *Vector) IsEmpty() bool {
-	this.mu.Lock()
-	defer this.mu.Unlock()
+	this.mu.RLock()
+	defer this.mu.RUnlock()
 
 	return this.elementCount == 0
 }
@@ -110,8 +111,8 @@ func (this *Vector) IndexOf(o interface{}) int {
 }
 
 func (this *Vector) IndexOfWithIndex(o interface{}, index int) int {
-	this.mu.Lock()
-	defer this.mu.Unlock()
+	this.mu.RLock()
+	defer this.mu.RUnlock()
 
 	if o == nil {
 		for i := index; i < this.elementCount; i++ {
@@ -134,8 +135,8 @@ func (this *Vector) LastIndexOf(o interface{}, index int) int {
 }
 
 func (this *Vector) LastIndexOfWithIndex(o interface{}, index int) int {
-	this.mu.Lock()
-	defer this.mu.Unlock()
+	this.mu.RLock()
+	defer this.mu.RUnlock()
 
 	if o == nil {
 		for i := index; i >= 0; i-- {
@@ -153,7 +154,7 @@ func (this *Vector) LastIndexOfWithIndex(o interface{}, index int) int {
 	return -1
 }
 
-func (this *Vector) addToElementData(o *interface{}, elementData *[]interface{}, s int) {
+func (this *Vector) addToElementData(o interface{}, elementData *[]interface{}, s int) {
 	this.mu.Lock()
 	defer this.mu.Unlock()
 
@@ -171,13 +172,13 @@ func (this *Vector) addToElementData(o *interface{}, elementData *[]interface{},
 }
 
 //  Appends the specified element to the end of this Vector.
-func (this *Vector) Add(o *interface{}) bool {
+func (this *Vector) Add(o interface{}) bool {
 	//fmt.Printf("add o p: %v %v\n", o, &o)
 	this.addToElementData(o, &this.elementData, this.elementCount)
 	return true
 }
 
-func (this *Vector) removeElement(o *interface{}) bool {
+func (this *Vector) removeElement(o interface{}) bool {
 	this.mu.Lock()
 	defer this.mu.Unlock()
 
@@ -195,9 +196,9 @@ func (this *Vector) removeElementAt(index int) {
 	defer this.mu.Unlock()
 
 	if index >= this.elementCount {
-		try.Throw(err.ArrayIndexOutOfBoundsException.NewThrow(string(index) + ">=" + string(this.elementCount)))
+		try.Throw(err.ArrayIndexOutOfBoundsException.NewThrow(strconv.Itoa(index) + ">=" + strconv.Itoa(this.elementCount)))
 	} else if index < 0 {
-		try.Throw(err.ArrayIndexOutOfBoundsException.NewThrow(string(index)))
+		try.Throw(err.ArrayIndexOutOfBoundsException.NewThrow(strconv.Itoa(index)))
 	}
 
 	var j = this.elementCount - index - 1
@@ -208,7 +209,7 @@ func (this *Vector) removeElementAt(index int) {
 	this.elementData[this.elementCount] = nil
 }
 
-func (this *Vector) Remove(index int) (val *interface{}) {
+func (this *Vector) Remove(index int) interface{} {
 	this.mu.Lock()
 	defer this.mu.Unlock()
 
@@ -217,7 +218,7 @@ func (this *Vector) Remove(index int) (val *interface{}) {
 	}
 
 	if index >= this.elementCount || index < 0 {
-		try.Throw(err.ArrayIndexOutOfBoundsException.NewThrow("size: " + string(this.elementCount) + " index: " + string(index)))
+		try.Throw(err.ArrayIndexOutOfBoundsException.NewThrow("size: " + strconv.Itoa(this.elementCount) + " index: " + strconv.Itoa(index)))
 	}
 
 	oldValue := this.elementData[index]
@@ -232,7 +233,7 @@ func (this *Vector) Remove(index int) (val *interface{}) {
 	this.elementCount -= 1
 	this.elementData[this.elementCount] = nil // Let gc do its work
 
-	return oldValue.(*interface{})
+	return oldValue
 }
 
 func (this *Vector) removeAllElements() {
@@ -251,46 +252,46 @@ func (this *Vector) Clear() {
 	this.removeAllElements()
 }
 
-func (this *Vector) FirstElement() *interface{} {
+func (this *Vector) FirstElement() interface{} {
 	this.mu.Lock()
 	defer this.mu.Unlock()
 
 	if this.elementCount == 0 {
 		try.Throw(err.NoSuchElementException.NewThrow(""))
 	}
-	return (this.elementData[0]).(*interface{})
+	return this.elementData[0]
 }
 
-func (this *Vector) LastElement() *interface{} {
+func (this *Vector) LastElement() interface{} {
 	this.mu.Lock()
 	defer this.mu.Unlock()
 
 	if this.elementCount == 0 {
 		try.Throw(err.NoSuchElementException.NewThrow(""))
 	}
-	return (this.elementData[this.elementCount-1]).(*interface{})
+	return this.elementData[this.elementCount-1]
 }
 
-func (this *Vector) Get(index int) *interface{} {
-	this.mu.Lock()
-	defer this.mu.Unlock()
+func (this *Vector) Get(index int) interface{} {
+	this.mu.RLock()
+	defer this.mu.RUnlock()
 
 	if index >= this.elementCount || index < 0 {
-		try.Throw(err.ArrayIndexOutOfBoundsException.NewThrow("size: " + string(this.elementCount) + " index: " + string(index)))
+		try.Throw(err.ArrayIndexOutOfBoundsException.NewThrow("size: " + strconv.Itoa(this.elementCount) + " index: " + strconv.Itoa(index)))
 	}
-	return (this.elementData[index]).(*interface{})
+	return this.elementData[index]
 }
 
-func (this *Vector) Set(index int, element interface{}) *interface{} {
+func (this *Vector) Set(index int, element interface{}) interface{} {
 	this.mu.Lock()
 	defer this.mu.Unlock()
 
 	if index >= this.elementCount || index < 0 {
-		try.Throw(err.ArrayIndexOutOfBoundsException.NewThrow("size: " + string(this.elementCount) + " index: " + string(index)))
+		try.Throw(err.ArrayIndexOutOfBoundsException.NewThrow("size: " + strconv.Itoa(this.elementCount) + " index: " + strconv.Itoa(index)))
 	}
 
 	oldValue := this.elementData[index]
 	this.elementData[index] = element
 
-	return oldValue.(*interface{})
+	return oldValue
 }

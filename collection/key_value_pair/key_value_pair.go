@@ -5,9 +5,9 @@ import (
 )
 
 type KeyValuePair struct {
-	mu sync.Mutex
+	mu sync.RWMutex
 
-	table map[string]*interface{}
+	table map[string]interface{}
 
 	// 重新组建 Map 的阀值
 	// 当 阀值 达到 删除次数开始重建 map，清理内存
@@ -23,7 +23,7 @@ type KeyValuePair struct {
 // 初始化
 func (this *KeyValuePair) init() {
 
-	this.table = make(map[string]*interface{})
+	this.table = make(map[string]interface{})
 
 	// 重新组建 Map 的阀值
 	this.threshold = 100
@@ -37,6 +37,9 @@ func NewKeyValuePair() *KeyValuePair {
 }
 
 func (this *KeyValuePair) Size() int {
+	this.mu.RLock()
+	defer this.mu.RUnlock()
+
 	i := len(this.table)
 	return i
 }
@@ -50,15 +53,15 @@ func (this *KeyValuePair) IsEmpty() bool {
 	}
 }
 
-func (this *KeyValuePair) Get(key string) *interface{} {
-	this.mu.Lock()
-	defer this.mu.Unlock()
+func (this *KeyValuePair) Get(key string) interface{} {
+	this.mu.RLock()
+	defer this.mu.RUnlock()
 
 	i := this.table[key]
 	return i
 }
 
-func (this *KeyValuePair) Put(key string, value *interface{}) {
+func (this *KeyValuePair) Put(key string, value interface{}) {
 	this.mu.Lock()
 	defer this.mu.Unlock()
 
@@ -74,11 +77,14 @@ func (this *KeyValuePair) Remove(key string) {
 		delete(this.table, key)
 		this.delCount++
 		// 每次移除后，检验是否重新组建Map
-		this.IsRebuild()
+		isRebuild := this.IsRebuild()
+		if isRebuild {
+			this.rebuildMap()
+		}
 	}
 }
 
-func (this *KeyValuePair) RemoveValue(value *interface{}) {
+func (this *KeyValuePair) RemoveValue(value interface{}) {
 	this.mu.Lock()
 	defer this.mu.Unlock()
 
@@ -87,15 +93,18 @@ func (this *KeyValuePair) RemoveValue(value *interface{}) {
 			delete(this.table, k)
 			this.delCount++
 			// 每次移除后，检验是否重新组建Map
-			this.IsRebuild()
+			isRebuild := this.IsRebuild()
+			if isRebuild {
+				this.rebuildMap()
+			}
 		}
 	}
 
 }
 
 func (this *KeyValuePair) ContainsKey(key string) bool {
-	this.mu.Lock()
-	defer this.mu.Unlock()
+	this.mu.RLock()
+	defer this.mu.RUnlock()
 
 	_, ok := this.table[key]
 	if ok {
@@ -105,9 +114,9 @@ func (this *KeyValuePair) ContainsKey(key string) bool {
 	}
 }
 
-func (this *KeyValuePair) ContainsValue(value *interface{}) bool {
-	this.mu.Lock()
-	defer this.mu.Unlock()
+func (this *KeyValuePair) ContainsValue(value interface{}) bool {
+	this.mu.RLock()
+	defer this.mu.RUnlock()
 
 	for _, v := range this.table {
 		if v == value {
@@ -118,8 +127,8 @@ func (this *KeyValuePair) ContainsValue(value *interface{}) bool {
 }
 
 func (this *KeyValuePair) Keys() []string {
-	this.mu.Lock()
-	defer this.mu.Unlock()
+	this.mu.RLock()
+	defer this.mu.RUnlock()
 
 	keys := make([]string, 0)
 	for k, _ := range this.table {
@@ -128,11 +137,11 @@ func (this *KeyValuePair) Keys() []string {
 	return keys
 }
 
-func (this *KeyValuePair) Values() []*interface{} {
-	this.mu.Lock()
-	defer this.mu.Unlock()
+func (this *KeyValuePair) Values() []interface{} {
+	this.mu.RLock()
+	defer this.mu.RUnlock()
 
-	values := make([]*interface{}, 0)
+	values := make([]interface{}, 0)
 	for _, v := range this.table {
 		values = append(values, v)
 	}
@@ -149,9 +158,13 @@ func (this *KeyValuePair) GetThreshold() int {
 
 // 是否 重新 组建
 func (this *KeyValuePair) IsRebuild() bool {
+	return this.isRebuild()
+}
+
+// 是否 重新 组建
+func (this *KeyValuePair) isRebuild() bool {
 	ret := false
 	if this.delCount >= this.threshold {
-		go this.rebuildMap()
 		ret = true
 	} else {
 		ret = false
@@ -166,13 +179,11 @@ func (this *KeyValuePair) IsRebuilding() bool {
 
 // 重建 map
 func (this *KeyValuePair) rebuildMap() {
-	this.mu.Lock()
-	defer this.mu.Unlock()
 
 	this.rebuilding = true
 
 	// 创建新的map
-	newMap := make(map[string]*interface{})
+	newMap := make(map[string]interface{})
 
 	// 将 旧 map 的值 拷贝到 新 map 中
 	for k, v := range this.table {
@@ -200,7 +211,7 @@ func (this *KeyValuePair) Clear() {
 	this.rebuilding = true
 
 	// 创建新的map
-	newMap := make(map[string]*interface{})
+	newMap := make(map[string]interface{})
 
 	this.table = newMap
 

@@ -5,7 +5,7 @@ import (
 )
 
 type HashMap struct {
-	mu sync.Mutex
+	mu sync.RWMutex
 
 	table map[interface{}]interface{}
 
@@ -51,8 +51,8 @@ func (this *HashMap) IsEmpty() bool {
 }
 
 func (this *HashMap) Get(key interface{}) interface{} {
-	this.mu.Lock()
-	defer this.mu.Unlock()
+	this.mu.RLock()
+	defer this.mu.RUnlock()
 
 	return this.table[key]
 }
@@ -71,12 +71,15 @@ func (this *HashMap) Remove(key interface{}) {
 	delete(this.table, key)
 	this.delCount++
 	// 每次移除后，检验是否重新组建Map
-	this.IsRebuild()
+	isRebuild := this.IsRebuild()
+	if isRebuild {
+		this.rebuildMap()
+	}
 }
 
 func (this *HashMap) ContainsKey(key interface{}) bool {
-	this.mu.Lock()
-	defer this.mu.Unlock()
+	this.mu.RLock()
+	defer this.mu.RUnlock()
 
 	_, ok := this.table[key]
 	if ok {
@@ -87,8 +90,8 @@ func (this *HashMap) ContainsKey(key interface{}) bool {
 }
 
 func (this *HashMap) ContainsValue(value interface{}) bool {
-	this.mu.Lock()
-	defer this.mu.Unlock()
+	this.mu.RLock()
+	defer this.mu.RUnlock()
 
 	for _, v := range this.table {
 		if v == value {
@@ -99,8 +102,8 @@ func (this *HashMap) ContainsValue(value interface{}) bool {
 }
 
 func (this *HashMap) Keys() []interface{} {
-	this.mu.Lock()
-	defer this.mu.Unlock()
+	this.mu.RLock()
+	defer this.mu.RUnlock()
 
 	keys := make([]interface{}, 0)
 	for k, _ := range this.table {
@@ -110,8 +113,8 @@ func (this *HashMap) Keys() []interface{} {
 }
 
 func (this *HashMap) Values() []interface{} {
-	this.mu.Lock()
-	defer this.mu.Unlock()
+	this.mu.RLock()
+	defer this.mu.RUnlock()
 
 	values := make([]interface{}, 0)
 	for _, v := range this.table {
@@ -132,7 +135,6 @@ func (this *HashMap) GetThreshold() int {
 func (this *HashMap) IsRebuild() bool {
 	ret := false
 	if this.delCount >= this.threshold {
-		go this.rebuildMap()
 		ret = true
 	} else {
 		ret = false
@@ -147,8 +149,6 @@ func (this *HashMap) IsRebuilding() bool {
 
 // 重建 map
 func (this *HashMap) rebuildMap() {
-	this.mu.Lock()
-	defer this.mu.Unlock()
 
 	this.rebuilding = true
 

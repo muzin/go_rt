@@ -4,6 +4,7 @@ import (
 	"github.com/muzin/go_rt/lang/err"
 	"github.com/muzin/go_rt/system"
 	"github.com/muzin/go_rt/try"
+	"strconv"
 )
 
 const (
@@ -136,7 +137,7 @@ func (this *ArrayList) LastIndexOfWithIndex(o interface{}, index int) int {
 	return -1
 }
 
-func (this *ArrayList) addToElementData(o *interface{}, elementData *[]interface{}, s int) {
+func (this *ArrayList) addToElementData(o interface{}, elementData *[]interface{}, s int) {
 
 	if s == len(*elementData) {
 		this.elementData = *(this.grow())
@@ -149,13 +150,13 @@ func (this *ArrayList) addToElementData(o *interface{}, elementData *[]interface
 }
 
 //  Appends the specified element to the end of this ArrayList.
-func (this *ArrayList) Add(o *interface{}) bool {
+func (this *ArrayList) Add(o interface{}) bool {
 
 	this.addToElementData(o, &this.elementData, this.elementCount)
 	return true
 }
 
-func (this *ArrayList) removeElement(o *interface{}) bool {
+func (this *ArrayList) removeElement(o interface{}) bool {
 	i := this.IndexOf(o)
 	if i >= 0 {
 		this.removeElementAt(i)
@@ -167,9 +168,9 @@ func (this *ArrayList) removeElement(o *interface{}) bool {
 
 func (this *ArrayList) removeElementAt(index int) {
 	if index >= this.elementCount {
-		panic("ArrayIndexOutOfBoundsException " + string(index) + ">=" + string(this.elementCount))
+		panic("ArrayIndexOutOfBoundsException " + strconv.Itoa(index) + ">=" + strconv.Itoa(this.elementCount))
 	} else if index < 0 {
-		panic("ArrayIndexOutOfBoundsException " + string(index))
+		panic("ArrayIndexOutOfBoundsException " + strconv.Itoa(index))
 
 	}
 
@@ -181,13 +182,13 @@ func (this *ArrayList) removeElementAt(index int) {
 	this.elementData[this.elementCount] = nil
 }
 
-func (this *ArrayList) Remove(index int) (val *interface{}) {
+func (this *ArrayList) Remove(index int) interface{} {
 	if this.elementCount == 0 && index == this.elementCount {
 		return nil
 	}
 
 	if index >= this.elementCount || index < 0 {
-		try.Throw(err.ArrayIndexOutOfBoundsException.NewThrow("size: " + string(this.elementCount) + " index: " + string(index)))
+		try.Throw(err.ArrayIndexOutOfBoundsException.NewThrow("size: " + strconv.Itoa(this.elementCount) + " index: " + strconv.Itoa(index)))
 	}
 
 	oldValue := this.elementData[index]
@@ -202,7 +203,7 @@ func (this *ArrayList) Remove(index int) (val *interface{}) {
 	this.elementCount -= 1
 	this.elementData[this.elementCount] = nil // Let gc do its work
 
-	return oldValue.(*interface{})
+	return oldValue
 }
 
 func (this *ArrayList) removeAllElements() {
@@ -218,34 +219,34 @@ func (this *ArrayList) Clear() {
 	this.removeAllElements()
 }
 
-func (this *ArrayList) FirstElement() *interface{} {
+func (this *ArrayList) FirstElement() interface{} {
 	if this.elementCount == 0 {
 		try.Throw(err.NoSuchElementException.NewThrow(""))
 	}
-	return (this.elementData[0]).(*interface{})
+	return this.elementData[0]
 }
 
-func (this *ArrayList) LastElement() *interface{} {
+func (this *ArrayList) LastElement() interface{} {
 	if this.elementCount == 0 {
 		try.Throw(err.NoSuchElementException.NewThrow(""))
 	}
-	return (this.elementData[this.elementCount-1]).(*interface{})
+	return this.elementData[this.elementCount-1]
 }
 
-func (this *ArrayList) Get(index int) *interface{} {
+func (this *ArrayList) Get(index int) interface{} {
 	if index >= this.elementCount || index < 0 {
-		try.Throw(err.ArrayIndexOutOfBoundsException.NewThrow("size: " + string(this.elementCount) + " index: " + string(index)))
+		try.Throw(err.ArrayIndexOutOfBoundsException.NewThrow("size: " + strconv.Itoa(this.elementCount) + " index: " + strconv.Itoa(index)))
 	}
-	return (this.elementData[index]).(*interface{})
+	return this.elementData[index]
 }
 
-func (this *ArrayList) Set(index int, element interface{}) *interface{} {
+func (this *ArrayList) Set(index int, element interface{}) interface{} {
 	if index >= this.elementCount || index < 0 {
-		try.Throw(err.ArrayIndexOutOfBoundsException.NewThrow("size: " + string(this.elementCount) + " index: " + string(index)))
+		try.Throw(err.ArrayIndexOutOfBoundsException.NewThrow("size: " + strconv.Itoa(this.elementCount) + " index: " + strconv.Itoa(index)))
 	}
 
 	oldValue := this.elementData[index]
 	this.elementData[index] = element
 
-	return oldValue.(*interface{})
+	return oldValue
 }

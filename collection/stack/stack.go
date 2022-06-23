@@ -13,11 +13,11 @@ func NewStack() *Stack {
 	return &Stack{vector}
 }
 
-func (stack *Stack) Push(value *interface{}) {
+func (stack *Stack) Push(value interface{}) {
 	stack.vector.Add(value)
 }
 
-func (stack *Stack) Pop() *interface{} {
+func (stack *Stack) Pop() interface{} {
 	lastIndex := stack.vector.Size() - 1
 	if (lastIndex) >= 0 {
 		lastElement := stack.vector.Remove(lastIndex)
@@ -26,7 +26,7 @@ func (stack *Stack) Pop() *interface{} {
 	return nil
 }
 
-func (stack *Stack) Shift() *interface{} {
+func (stack *Stack) Shift() interface{} {
 	firstIndex := 0
 	if (firstIndex) >= 0 {
 		firstElement := stack.vector.Remove(firstIndex)
@@ -35,7 +35,7 @@ func (stack *Stack) Shift() *interface{} {
 	return nil
 }
 
-func (stack *Stack) Get(i int) *interface{} {
+func (stack *Stack) Get(i int) interface{} {
 	obj := stack.vector.Get(i)
 	return obj
 }
