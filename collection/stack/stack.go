@@ -47,3 +47,7 @@ func (stack *Stack) Size() int {
 func (stack *Stack) IsEmpty() bool {
 	return stack.vector.Size() == 0
 }
+
+func (stack *Stack) Clear() {
+	stack.vector.Clear()
+}

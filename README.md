@@ -5,7 +5,16 @@ Go 运行标准库
 ### support:
 
 - collection    集合
-
+    - HashMap
+    - ArrayList
+    - KeyValuePair
+    - Stack
+    - Vector
+    
+- interator     迭代器    
+    - Map
+    - Reduce
+    
 - events        EventEmitter
 
 - lang          基础语法处理
