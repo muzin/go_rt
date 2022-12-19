@@ -394,10 +394,9 @@ func (this *TCPSocket) Write(args ...interface{}) int {
 
 	// 如果 没有（写通道关闭/进入等待状态）则 加入到 写缓冲区
 	if !(this.writeChannelFinished || this.writeChannelClosed || this.waitClose) {
-		bytes := append([]byte(nil), data[index:(index+length)]...)
 		this.writeChannel <- ByteWrap{
 			t:     WriteByteWrap,
-			bytes: bytes,
+			bytes: append([]byte(nil), data[index:(index+length)]...),
 		}
 		data = nil
 	}
@@ -446,6 +445,7 @@ func (this *TCPSocket) writeConsumer() {
 					if wrapType == WriteByteWrap {
 						if !this.waitClose {
 							_, err := this.write(data)
+							data = nil
 							if nil != err {
 								this.Emit("error", SocketWriteException.NewThrow(err.Error()))
 							}
