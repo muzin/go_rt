@@ -7,6 +7,21 @@ import (
 func TestLRUCache_Get(t *testing.T) {
 	t.Run("tt.name", func(t *testing.T) {
 
+		var i1 []int = []int{1, 2, 3}
+
+		func(i_o *[]int) {
+
+			t.Logf("%v", i_o)
+			t.Logf("%v", &i1)
+
+			if i_o == &i1 {
+				t.Logf("true")
+			}
+
+			t.Logf("1")
+
+		}(&i1)
+
 		lruCache := NewLRUCache(10)
 
 		lruCache.Put("1", 1)
