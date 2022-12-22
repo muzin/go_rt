@@ -473,6 +473,18 @@ func (this *TCPSocket) writeConsumer() {
 }
 
 func (this *TCPSocket) readConsumer() {
+
+	for {
+		// 如果 data 没有监听，等待监听后再发送数据
+		dataListenerCount := this.ListenerCount("data")
+		if dataListenerCount == 0 {
+			time.Sleep(10 * time.Millisecond)
+			continue
+		} else {
+			break
+		}
+	}
+
 	for {
 		if this.pending {
 			time.Sleep(10 * time.Millisecond)
