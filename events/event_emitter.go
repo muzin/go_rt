@@ -40,6 +40,12 @@ type EventEmitter struct {
 
 	// 是否允许事件有多个监听函数
 	prepend bool
+
+	// 错误处理函数
+	errorEventWrap *EventWrap
+
+	// 事件处理通道
+	eventChannel chan EventChanWrap
 }
 
 // 事件包裹器
@@ -98,6 +104,21 @@ func (this *EventWrap) IsOnce() bool {
 	return this.isOnce
 }
 
+type EventChanWrapType int
+
+var (
+	NormalEventChanType EventChanWrapType = 0 // 事件通道Wrap
+	CloseEventChanType  EventChanWrapType = 1 // 关闭事件通道Wrap
+)
+
+type EventChanWrap struct {
+	t EventChanWrapType
+
+	handler func(...interface{})
+
+	args []interface{}
+}
+
 func NewEventEmitter() *EventEmitter {
 	emitter := &EventEmitter{}
 	emitter.init()
@@ -118,6 +139,11 @@ func (this *EventEmitter) init() {
 
 	// 默认 新增的监听器向后方
 	this.prepend = false
+
+	this.eventChannel = make(chan EventChanWrap, 100)
+
+	go this.eventHandler()
+
 }
 
 // SetMaxListeners
@@ -202,44 +228,45 @@ func (this *EventEmitter) emit(t string, rungo bool, args ...interface{}) bool {
 		return false
 	}
 
-	var errorHandler func(...interface{})
-
-	// 获取 异常处理函数
-	errorHandlersEventWrapPtr, errOk := events.Load("error")
-	var errorHandlers []func(...interface{})
-	if nil != errorHandlersEventWrapPtr {
-		eventWrap := errorHandlersEventWrapPtr.(*EventWrap)
-		errorHandlers = eventWrap.GetListeners()
-	}
-
-	if errOk && len(errorHandlers) > 0 {
-		errorHandler = errorHandlers[0]
-	}
-
-	// 是否 并行 调用 回调函数
-	if rungo == true {
-		for i := 0; i < len(handlers); i++ {
-			handler := handlers[i]
-			go func() {
-				if handler != nil {
-					defer try.CatchUncaughtException(errorOfCallerHandle(errorHandler))()
-					handler(args...)
-				}
-			}()
-		}
-	} else {
-		for i := 0; i < len(handlers); i++ {
-			handler := handlers[i]
-			func() {
-				if handler != nil {
-					defer try.CatchUncaughtException(errorOfCallerHandle(errorHandler))()
-					handler(args...)
-				}
-			}()
+	for i := 0; i < len(handlers); i++ {
+		handler := handlers[i]
+		if handler != nil {
+			this.eventChannel <- EventChanWrap{
+				t:       NormalEventChanType,
+				handler: handler,
+				args:    args,
+			}
 		}
 	}
 
 	return true
+}
+
+func (this *EventEmitter) eventHandler() {
+	for {
+		eventChanWrap, isOpen := <-this.eventChannel
+		if isOpen {
+			handler := eventChanWrap.handler
+			args := eventChanWrap.args
+			chanWrapType := eventChanWrap.t
+
+			if NormalEventChanType == chanWrapType {
+				try.Try(func() {
+					handler(args...)
+				}, try.CatchUncaughtException(func(throwable try.Throwable) {
+					if this.errorEventWrap != nil {
+						errListeners := this.errorEventWrap.GetListeners()
+						for _, errListener := range errListeners {
+							errListener(throwable)
+						}
+					}
+				}))
+			} else if CloseEventChanType == chanWrapType {
+				close(this.eventChannel)
+			}
+
+		}
+	}
 }
 
 // 调用函数时出现错误的处理函数
@@ -304,9 +331,11 @@ func (this *EventEmitter) addListener(t string, listener func(...interface{}), p
 		existing = eventWrap.GetListeners()
 	}
 
+	var eventWrap *EventWrap = nil
+
 	// 如果 没有获取到事件包裹器 添加
 	if nil == existingInterfaceEventWrapPtr {
-		eventWrap := &EventWrap{
+		eventWrap = &EventWrap{
 			name:    t,
 			isOnce:  isOnce,
 			emitted: false,
@@ -317,7 +346,7 @@ func (this *EventEmitter) addListener(t string, listener func(...interface{}), p
 		this.eventsCount += 1
 
 	} else {
-		eventWrap := existingInterfaceEventWrapPtr.(*EventWrap)
+		eventWrap = existingInterfaceEventWrapPtr.(*EventWrap)
 		eventWrap.AddHandler(listener, prepend)
 	}
 
@@ -327,6 +356,10 @@ func (this *EventEmitter) addListener(t string, listener func(...interface{}), p
 			"%v %v listeners "+
 			"added. Use emitter.SetMaxListeneres() to increase limit.",
 			len(existing), t)))
+	}
+
+	if t == "error" {
+		this.errorEventWrap = eventWrap
 	}
 
 	events = nil
