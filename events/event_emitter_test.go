@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/muzin/go_rt/try"
 	"testing"
+	"time"
 )
 
 func TestEventEmitter_New(t *testing.T) {
@@ -51,6 +52,8 @@ func TestEventEmitter_On(t *testing.T) {
 		for i := 0; i < except; i++ {
 			eventemitter.Emit("data", i)
 		}
+
+		time.Sleep(1 * time.Second)
 
 		//time.Sleep(10 * time.Second)
 		if count != except {
