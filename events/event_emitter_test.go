@@ -86,18 +86,24 @@ func TestEventEmitter_Once(t *testing.T) {
 			t.Error("NewEventEmitter emitter is not null are expect")
 		}
 
-		except := 1
+		except := 100
 		count := 0
-		eventemitter.Once("data", func(args ...interface{}) {
+		eventemitter.On("data", func(args ...interface{}) {
 			t.Logf("args: %v", args)
 			count++
 		})
 
-		for i := 0; i < 50000; i++ {
-			go func() {
-				eventemitter.Emit("data", i)
-			}()
+		for i := 0; i < 100; i++ {
+			func(v int) {
+				eventemitter.Emit("data", v)
+			}(i)
 		}
+
+		eventemitter.Close()
+
+		eventemitter.Emit("data", 501)
+
+		time.Sleep(1 * time.Second)
 
 		if count != except {
 			t.Errorf("NewEventEmitter expect: %v but: %v", except, count)

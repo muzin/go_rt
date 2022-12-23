@@ -127,10 +127,10 @@ func (this *EventEmitter) Emit(t string, args ...interface{}) bool {
 	return this.emit(t, false, args...)
 }
 
-//func (this *EventEmitter) EmitGo(t string, args ...interface{}) bool {
-//	go this.emit(t, true, args...)
-//	return true
-//}
+func (this *EventEmitter) EmitGo(t string, args ...interface{}) bool {
+	go this.emit(t, true, args...)
+	return true
+}
 
 func (this *EventEmitter) emit(t string, rungo bool, args ...interface{}) bool {
 
@@ -296,7 +296,7 @@ func (this *EventEmitter) addListener(t string, listener func(...interface{}), p
 
 	_, newOk := events.Load(EVENT_EMITTER_NEW_LISTENER_NAME)
 	if newOk {
-		this.Emit(EVENT_EMITTER_NEW_LISTENER_NAME, t, listener)
+		this.EmitGo(EVENT_EMITTER_NEW_LISTENER_NAME, t, listener)
 		events = this.events
 	}
 	existingInterfaceEventWrapPtr, _ := events.Load(t)

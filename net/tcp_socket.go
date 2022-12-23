@@ -200,11 +200,12 @@ func (this *TCPSocket) Init() {
 		this.AddAppendListener("end", func(...interface{}) {
 			// 结束后，从等待组中 标记为 done
 			GetSocketWaitGroup("tcp_socket [event]_end WaitGroup done 1").Done()
+
+			this.EventEmitter.Close()
 		})
 		// 发射 事件
 		this.Emit("end")
 
-		this.EventEmitter.Close()
 	})
 
 	// 如果 之前声明过 声明函数 直接加载

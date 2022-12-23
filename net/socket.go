@@ -49,7 +49,7 @@ type Socket interface {
 	Emit(t string, args ...interface{}) bool
 
 	// go 发射 事件
-	//EmitGo(t string, args ...interface{}) bool
+	EmitGo(t string, args ...interface{}) bool
 
 	// 获取本地地址
 	LocalAddr() net.Addr

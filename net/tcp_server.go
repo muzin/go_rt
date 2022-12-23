@@ -249,9 +249,12 @@ func (this *TCPServer) Close() {
 		// 已结束
 		this.ended = true
 
+		this.AddAppendListener("end", func(...interface{}) {
+			this.EventEmitter.Close()
+		})
+
 		this.Emit("end")
 
-		this.EventEmitter.Close()
 	}()
 
 	// 记录 server 结束
