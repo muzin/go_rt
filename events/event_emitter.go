@@ -50,6 +50,8 @@ type EventEmitter struct {
 	// 事件处理通道是否结束
 	eventChannelFinished bool
 
+	eventChannelClosed bool
+
 	mu sync.RWMutex
 }
 
@@ -78,6 +80,8 @@ func (this *EventEmitter) init() {
 
 	this.eventChannelFinished = false
 
+	this.eventChannelClosed = false
+
 	go this.eventHandler()
 
 }
@@ -88,6 +92,7 @@ func (this *EventEmitter) Open() bool {
 
 	if this.eventChannelFinished {
 		this.eventChannelFinished = false
+		this.eventChannelClosed = false
 		this.eventChannel = make(chan EventChanWrap, 100)
 		go this.eventHandler()
 		return true
@@ -102,6 +107,9 @@ func (this *EventEmitter) Close() bool {
 
 	if !this.eventChannelFinished {
 		this.eventChannelFinished = true
+
+		fmt.Printf("EventEmitter Close: this.eventChannel <- CloseEventChanType")
+
 		this.eventChannel <- EventChanWrap{
 			t: CloseEventChanType,
 		}
@@ -134,8 +142,8 @@ func (this *EventEmitter) EmitGo(t string, args ...interface{}) bool {
 
 func (this *EventEmitter) emit(t string, rungo bool, args ...interface{}) bool {
 
-	//this.mu.RLock()
-	//defer this.mu.RUnlock()
+	this.mu.RLock()
+	defer this.mu.RUnlock()
 
 	// 如果 事件通道已结束 不允许发射任何事件
 	if this.eventChannelFinished {
@@ -203,6 +211,9 @@ func (this *EventEmitter) emit(t string, rungo bool, args ...interface{}) bool {
 	for i := 0; i < len(handlers); i++ {
 		handler := handlers[i]
 		if handler != nil {
+
+			fmt.Printf("EventEmitter Emit: this.eventChannel <- {handler: %v, args: %v}", handler, args)
+
 			this.eventChannel <- EventChanWrap{
 				t:       NormalEventChanType,
 				handler: handler,
@@ -222,6 +233,8 @@ func (this *EventEmitter) eventHandler() {
 			handler := eventChanWrap.handler
 			args := eventChanWrap.args
 
+			fmt.Printf("EventEmitter Event handler :  {handler: %v, args: %v}", handler, args)
+
 			if NormalEventChanType == chanWrapType {
 				try.Try(func() {
 					handler(args...)
@@ -234,7 +247,12 @@ func (this *EventEmitter) eventHandler() {
 					}
 				}))
 			} else if CloseEventChanType == chanWrapType {
-				close(this.eventChannel)
+
+				fmt.Printf("EventEmitter Event channel close")
+				if !this.eventChannelClosed {
+					this.eventChannelClosed = true
+					close(this.eventChannel)
+				}
 			}
 
 		} else {
