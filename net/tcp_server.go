@@ -132,7 +132,7 @@ func (this *TCPServer) Listen(args ...interface{}) {
 
 	go func() {
 		// 发送 监听事件
-		this.EmitGo("listen", network, address)
+		this.Emit("listen", network, address)
 	}()
 
 }
@@ -145,7 +145,7 @@ func (this *TCPServer) ConnectHandle() {
 			func() {
 				// 如果有异常， 发送 error 事件
 				defer try.Catch(ServerAcceptException, func(throwable try.Throwable) {
-					this.EmitGo("error", throwable)
+					this.Emit("error", throwable)
 				})()
 
 				// 接收来自 client 的连接,会阻塞
@@ -177,7 +177,7 @@ func (this *TCPServer) ConnectHandle() {
 				})
 
 				// 发送 有新 socket 连接事件
-				this.EmitGo("connect", newSocket)
+				this.Emit("connect", newSocket)
 
 			}()
 		} else {

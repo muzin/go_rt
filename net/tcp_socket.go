@@ -190,7 +190,7 @@ func (this *TCPSocket) Init() {
 		this.SetCloseStatus()
 
 		// 发送 结束事件
-		this.EmitGo("_end")
+		this.Emit("_end")
 	})
 
 	// 默认_结束事件

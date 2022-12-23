@@ -60,7 +60,7 @@ func (this *TLSServer) Listen(args ...interface{}) {
 	go func() {
 		time.Sleep(10 * time.Millisecond)
 		// 发送 监听事件
-		this.EmitGo("listen", network, address)
+		this.Emit("listen", network, address)
 	}()
 
 	this.Listener = server
