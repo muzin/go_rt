@@ -46,77 +46,11 @@ type EventEmitter struct {
 
 	// 事件处理通道
 	eventChannel chan EventChanWrap
-}
 
-// 事件包裹器
-type EventWrap struct {
-	// 事件名称
-	name string
+	// 事件处理通道是否结束
+	eventChannelFinished bool
 
-	// 监听事件
-	listeners []func(...interface{})
-
-	// 是否只能执行一次 默认：false
-	isOnce bool
-
-	// 是否触发过 默认：false
-	emitted bool
-
-	emitcount int
-
-	mu sync.Mutex
-}
-
-// 获取名称
-func (this *EventWrap) GetName() string {
-	return this.name
-}
-
-// 获取事件
-func (this *EventWrap) GetListeners() []func(...interface{}) {
-	this.mu.Lock()
-	defer this.mu.Unlock()
-
-	// 如果 是只触发一次
-	if this.isOnce && this.emitted {
-		return EMPTY_LISTENERS
-	}
-
-	return this.listeners
-}
-
-// 获取事件
-func (this *EventWrap) AddHandler(handler func(...interface{}), prepend bool) {
-	if prepend {
-		this.listeners = append(append(make([]func(...interface{}), 0), handler), this.listeners...)
-	} else {
-		this.listeners = append(this.listeners, handler)
-	}
-}
-
-func (this *EventWrap) Emitted() {
-	if !this.emitted {
-		this.emitted = true
-	}
-}
-
-func (this *EventWrap) IsOnce() bool {
-	return this.isOnce
-}
-
-type EventChanWrapType int
-
-var (
-	NormalEventChanType EventChanWrapType = 0 // 事件通道Wrap
-	CloseEventChanType  EventChanWrapType = 1 // 关闭事件通道Wrap
-)
-
-type EventChanWrap struct {
-	t EventChanWrapType
-
-	handler func(...interface{})
-
-	args []interface{}
+	mu sync.RWMutex
 }
 
 func NewEventEmitter() *EventEmitter {
@@ -142,8 +76,38 @@ func (this *EventEmitter) init() {
 
 	this.eventChannel = make(chan EventChanWrap, 100)
 
+	this.eventChannelFinished = false
+
 	go this.eventHandler()
 
+}
+
+func (this *EventEmitter) Open() bool {
+	this.mu.Lock()
+	defer this.mu.Unlock()
+
+	if this.eventChannelFinished {
+		this.eventChannelFinished = false
+		this.eventChannel = make(chan EventChanWrap, 100)
+		go this.eventHandler()
+		return true
+	} else {
+		return false
+	}
+}
+
+func (this *EventEmitter) Close() bool {
+	this.mu.Lock()
+	defer this.mu.Unlock()
+
+	if !this.eventChannelFinished {
+		this.eventChannel <- EventChanWrap{
+			t: CloseEventChanType,
+		}
+		return true
+	} else {
+		return false
+	}
 }
 
 // SetMaxListeners
@@ -168,6 +132,14 @@ func (this *EventEmitter) EmitGo(t string, args ...interface{}) bool {
 }
 
 func (this *EventEmitter) emit(t string, rungo bool, args ...interface{}) bool {
+
+	this.mu.RLock()
+	defer this.mu.RUnlock()
+
+	// 如果 事件通道已结束 不允许发射任何事件
+	if this.eventChannelFinished {
+		return false
+	}
 
 	doError := false
 	if t == "error" {
@@ -246,9 +218,9 @@ func (this *EventEmitter) eventHandler() {
 	for {
 		eventChanWrap, isOpen := <-this.eventChannel
 		if isOpen {
+			chanWrapType := eventChanWrap.t
 			handler := eventChanWrap.handler
 			args := eventChanWrap.args
-			chanWrapType := eventChanWrap.t
 
 			if NormalEventChanType == chanWrapType {
 				try.Try(func() {
@@ -263,8 +235,11 @@ func (this *EventEmitter) eventHandler() {
 				}))
 			} else if CloseEventChanType == chanWrapType {
 				close(this.eventChannel)
+				this.eventChannelFinished = true
 			}
 
+		} else {
+			break
 		}
 	}
 }
@@ -491,4 +466,75 @@ func (this *EventEmitter) GetPrepend() bool {
 // 销毁
 func (this *EventEmitter) Destory() {
 
+}
+
+// 事件包裹器
+type EventWrap struct {
+	// 事件名称
+	name string
+
+	// 监听事件
+	listeners []func(...interface{})
+
+	// 是否只能执行一次 默认：false
+	isOnce bool
+
+	// 是否触发过 默认：false
+	emitted bool
+
+	emitcount int
+
+	mu sync.Mutex
+}
+
+// 获取名称
+func (this *EventWrap) GetName() string {
+	return this.name
+}
+
+// 获取事件
+func (this *EventWrap) GetListeners() []func(...interface{}) {
+	this.mu.Lock()
+	defer this.mu.Unlock()
+
+	// 如果 是只触发一次
+	if this.isOnce && this.emitted {
+		return EMPTY_LISTENERS
+	}
+
+	return this.listeners
+}
+
+// 获取事件
+func (this *EventWrap) AddHandler(handler func(...interface{}), prepend bool) {
+	if prepend {
+		this.listeners = append(append(make([]func(...interface{}), 0), handler), this.listeners...)
+	} else {
+		this.listeners = append(this.listeners, handler)
+	}
+}
+
+func (this *EventWrap) Emitted() {
+	if !this.emitted {
+		this.emitted = true
+	}
+}
+
+func (this *EventWrap) IsOnce() bool {
+	return this.isOnce
+}
+
+type EventChanWrapType int
+
+var (
+	NormalEventChanType EventChanWrapType = 0 // 事件通道Wrap
+	CloseEventChanType  EventChanWrapType = 1 // 关闭事件通道Wrap
+)
+
+type EventChanWrap struct {
+	t EventChanWrapType
+
+	handler func(...interface{})
+
+	args []interface{}
 }

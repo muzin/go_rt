@@ -108,12 +108,6 @@ func NewTCPSocket() *TCPSocket {
 
 func (this *TCPSocket) Init() {
 
-	//if !this.inited {
-	//	this.inited = true
-	//} else {
-	//	return
-	//}
-
 	this.connecting = false
 	this.pending = false
 	this.readable = false
@@ -152,6 +146,8 @@ func (this *TCPSocket) Init() {
 	if len(this.EventNames()) > 0 {
 		this.RemoveAllListener()
 	}
+	// 打开 事件发射器
+	this.EventEmitter.Open()
 
 	// 默认 监听 一个 空 error 事件
 	this.On("error", func(...interface{}) {})
@@ -207,6 +203,8 @@ func (this *TCPSocket) Init() {
 		})
 		// 发射 事件
 		this.Emit("end")
+
+		this.EventEmitter.Close()
 	})
 
 	// 如果 之前声明过 声明函数 直接加载
