@@ -133,8 +133,8 @@ func (this *EventEmitter) EmitGo(t string, args ...interface{}) bool {
 
 func (this *EventEmitter) emit(t string, rungo bool, args ...interface{}) bool {
 
-	this.mu.RLock()
-	defer this.mu.RUnlock()
+	//this.mu.RLock()
+	//defer this.mu.RUnlock()
 
 	// 如果 事件通道已结束 不允许发射任何事件
 	if this.eventChannelFinished {
@@ -149,8 +149,7 @@ func (this *EventEmitter) emit(t string, rungo bool, args ...interface{}) bool {
 	events := this.events
 
 	if nil != events {
-		errorHandles, _ := events.Load("error")
-		if doError == true && nil == errorHandles {
+		if doError == true && nil == this.errorEventWrap {
 			doError = true
 		} else {
 			doError = false

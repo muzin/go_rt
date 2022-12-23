@@ -53,7 +53,7 @@ func TestEventEmitter_On(t *testing.T) {
 			eventemitter.Emit("data", i)
 		}
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(50 * time.Millisecond)
 
 		//time.Sleep(10 * time.Second)
 		if count != except {
