@@ -99,7 +99,7 @@ func TestEventEmitter_Once(t *testing.T) {
 			}(i)
 		}
 
-		eventemitter.Close()
+		eventemitter.Stop()
 
 		eventemitter.Emit("data", 501)
 

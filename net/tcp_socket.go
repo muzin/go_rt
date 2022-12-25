@@ -147,7 +147,7 @@ func (this *TCPSocket) Init() {
 		this.RemoveAllListener()
 	}
 	// 打开 事件发射器
-	this.EventEmitter.Open()
+	this.EventEmitter.Start()
 
 	// 默认 监听 一个 空 error 事件
 	this.On("error", func(...interface{}) {})
@@ -201,7 +201,7 @@ func (this *TCPSocket) Init() {
 			// 结束后，从等待组中 标记为 done
 			GetSocketWaitGroup("tcp_socket [event]_end WaitGroup done 1").Done()
 
-			this.EventEmitter.Close()
+			this.EventEmitter.Stop()
 		})
 		// 发射 事件
 		this.Emit("end")

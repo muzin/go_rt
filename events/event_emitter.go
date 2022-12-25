@@ -86,7 +86,7 @@ func (this *EventEmitter) init() {
 
 }
 
-func (this *EventEmitter) Open() bool {
+func (this *EventEmitter) Start() bool {
 	this.mu.Lock()
 	defer this.mu.Unlock()
 
@@ -101,7 +101,7 @@ func (this *EventEmitter) Open() bool {
 	}
 }
 
-func (this *EventEmitter) Close() bool {
+func (this *EventEmitter) Stop() bool {
 	this.mu.Lock()
 	defer this.mu.Unlock()
 
