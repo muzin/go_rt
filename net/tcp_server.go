@@ -250,7 +250,7 @@ func (this *TCPServer) Close() {
 		this.ended = true
 
 		this.AddAppendListener("end", func(...interface{}) {
-			this.EventEmitter.Close()
+			this.EventEmitter.Stop()
 		})
 
 		this.Emit("end")
