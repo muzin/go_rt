@@ -180,7 +180,7 @@ func (this *TCPSocket) Init() {
 			this.Emit("timeout", args[0])
 			GetSocketWaitGroup("tcp_socket [event]_timeout WaitGroup done 1").Done()
 		})
-		this._close()
+		this.Close()
 	})
 
 	// 默认关闭事件
@@ -309,13 +309,13 @@ func (this *TCPSocket) ConnectHandle() {
 
 					if !this.readChannelClosed {
 						this.readChannel <- ByteWrap{
-							t:     EndByteWrap,
+							t:     CloseByteWrap,
 							bytes: []byte(err.Error()),
 						}
 					}
 					if !this.writeChannelClosed {
 						this.writeChannel <- ByteWrap{
-							t:     EndByteWrap,
+							t:     CloseByteWrap,
 							bytes: []byte(err.Error()),
 						}
 					}
@@ -417,7 +417,7 @@ func (this *TCPSocket) write(data []byte) (int, error) {
 		if nil != err {
 			this.Emit("error", SocketWriteException.NewThrow(err.Error()))
 			// 有错误 关闭 连接
-			this._close()
+			this.Close()
 		}
 		return cnt, err
 	} else {
@@ -449,9 +449,6 @@ func (this *TCPSocket) writeConsumer() {
 							}
 						}
 					} else if wrapType == CloseByteWrap {
-						this._close()
-						break
-					} else if wrapType == EndByteWrap {
 						// 发送 写通道关闭事件
 						this.Emit("writeChannelFinished")
 						break
@@ -501,7 +498,7 @@ func (this *TCPSocket) readConsumer() {
 					data := dataWrap.bytes
 					if byteWrapType == ReadByteWrap { // 如果是读取Wrap
 						this.Emit("data", data)
-					} else if byteWrapType == EndByteWrap { // 如果是关闭Wrap
+					} else if byteWrapType == CloseByteWrap { // 如果是关闭Wrap
 						err := errors.New(string(data))
 						// 发送 写通道关闭事件
 						this.Emit("readChannelFinished")
@@ -635,15 +632,6 @@ func (this *TCPSocket) RemoteAddr() net.Addr {
 }
 
 func (this *TCPSocket) Close() {
-	if !(this.writeChannelFinished || this.writeChannelClosed || this.waitClose) {
-		this.waitClose = true
-		this.writeChannel <- ByteWrap{
-			t: CloseByteWrap,
-		}
-	}
-}
-
-func (this *TCPSocket) _close() {
 	if this.Conn != nil {
 		err := this.Conn.Close()
 		if err == nil {
@@ -693,7 +681,7 @@ func (this *TCPSocket) SetCloseStatus() {
 // 结束
 func (this *TCPSocket) End() {
 	if !this.destroyed {
-		this._close()
+		this.Close()
 	}
 }
 
@@ -842,10 +830,9 @@ func newSocketForServer(conn net.Conn) *TCPSocket {
 type ByteWrapType int
 
 var (
-	CloseByteWrap ByteWrapType = 0  // 关闭类型的数据Wrap
-	EndByteWrap   ByteWrapType = -1 // 关闭类型的数据Wrap
-	ReadByteWrap  ByteWrapType = 1  // 读类型的数据Wrap
-	WriteByteWrap ByteWrapType = 2  // 写类型的数据Wrap
+	CloseByteWrap ByteWrapType = 0 // 关闭类型的数据Wrap
+	ReadByteWrap  ByteWrapType = 1 // 读类型的数据Wrap
+	WriteByteWrap ByteWrapType = 2 // 写类型的数据Wrap
 )
 
 // 数据包裹对象
