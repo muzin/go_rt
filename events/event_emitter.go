@@ -107,9 +107,6 @@ func (this *EventEmitter) Stop() bool {
 
 	if !this.eventChannelFinished {
 		this.eventChannelFinished = true
-
-		fmt.Printf("EventEmitter Close: this.eventChannel <- CloseEventChanType\n")
-
 		this.eventChannel <- EventChanWrap{
 			t: CloseEventChanType,
 		}
@@ -211,9 +208,6 @@ func (this *EventEmitter) emit(t string, rungo bool, args ...interface{}) bool {
 	for i := 0; i < len(handlers); i++ {
 		handler := handlers[i]
 		if handler != nil {
-
-			fmt.Printf("EventEmitter Emit: this.eventChannel <- {handler: %v, args: %v}\n", handler, args)
-
 			this.eventChannel <- EventChanWrap{
 				t:       NormalEventChanType,
 				handler: handler,
@@ -233,8 +227,6 @@ func (this *EventEmitter) eventHandler() {
 			handler := eventChanWrap.handler
 			args := eventChanWrap.args
 
-			fmt.Printf("EventEmitter Event handler :  {handler: %v, args: %v}\n", handler, args)
-
 			if NormalEventChanType == chanWrapType {
 				try.Try(func() {
 					handler(args...)
@@ -247,8 +239,6 @@ func (this *EventEmitter) eventHandler() {
 					}
 				}))
 			} else if CloseEventChanType == chanWrapType {
-
-				fmt.Printf("EventEmitter Event channel close\n")
 				if !this.eventChannelClosed {
 					this.eventChannelClosed = true
 					close(this.eventChannel)

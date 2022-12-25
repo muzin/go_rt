@@ -25,7 +25,7 @@ var ServerAcceptException = try.DeclareException("ServerAcceptException")
 var ServerCloseException = try.DeclareException("ServerCloseException")
 
 type TCPServer struct {
-	events.EventEmitter
+	*events.EventEmitter
 
 	net.Listener
 
@@ -66,7 +66,7 @@ type TCPServer struct {
  */
 func NewTCPServer() *TCPServer {
 	s := &TCPServer{
-		EventEmitter: *events.NewEventEmitter(),
+		EventEmitter: events.NewEventEmitter(),
 	}
 	s.Init()
 	return s

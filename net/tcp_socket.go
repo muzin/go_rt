@@ -17,7 +17,7 @@ var SocketWriteException = try.DeclareException("SocketWriteException")
 var SocketCloseException = try.DeclareException("SocketCloseException")
 
 type TCPSocket struct {
-	events.EventEmitter
+	*events.EventEmitter
 
 	net.Conn
 
@@ -100,7 +100,7 @@ type TCPSocket struct {
 
 func NewTCPSocket() *TCPSocket {
 	s := &TCPSocket{
-		EventEmitter: *events.NewEventEmitter(),
+		EventEmitter: events.NewEventEmitter(),
 	}
 	s.Init()
 	return s
@@ -814,7 +814,7 @@ func Connect(port int, host string) Socket {
 // 创建 socket for server
 func newSocketForServer(conn net.Conn) *TCPSocket {
 	s := &TCPSocket{
-		EventEmitter: *events.NewEventEmitter(),
+		EventEmitter: events.NewEventEmitter(),
 		Conn:         conn,
 	}
 	s.Init()
