@@ -229,7 +229,7 @@ func (this *EventEmitter) eventHandler() {
 
 			if NormalEventChanType == chanWrapType {
 				try.Try(func() {
-					handler(args...)
+					handler(args)
 				}, try.CatchUncaughtException(func(throwable try.Throwable) {
 					if this.errorEventWrap != nil {
 						errListeners := this.errorEventWrap.GetListeners()
