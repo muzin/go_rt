@@ -95,7 +95,7 @@ func (this *TCPServer) On(t string, listener func(...interface{})) {
 }
 
 func (this *TCPServer) Emit(t string, args ...interface{}) {
-	this.EventEmitter.Emit(t, args)
+	this.EventEmitter.Emit(t, args...)
 }
 
 // 监听端口
@@ -207,7 +207,7 @@ func (this *TCPServer) OnListen(listener func(...interface{})) {
 func (this *TCPServer) OnConnect(listener func(...interface{})) {
 	this.On("connect", listener)
 	this.AddAppendListener("connect", func(args ...interface{}) {
-		socket := args[0].(TCPSocket)
+		socket := args[0].(Socket)
 		go socket.ConnectHandle()
 	})
 }
