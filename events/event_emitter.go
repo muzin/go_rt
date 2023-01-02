@@ -44,6 +44,9 @@ type EventEmitter struct {
 	// 错误处理函数
 	errorEventWrap *EventWrap
 
+	// 事件通道缓冲尺寸
+	eventChannelBufferSize int
+
 	// 事件处理通道
 	eventChannel chan EventChanWrap
 
@@ -55,8 +58,16 @@ type EventEmitter struct {
 	mu sync.RWMutex
 }
 
-func NewEventEmitter() *EventEmitter {
+// NewEventEmitter
+//
+// NewEventEmitter([bufferSize])
+func NewEventEmitter(args ...interface{}) *EventEmitter {
 	emitter := &EventEmitter{}
+	bufferSize := 200
+	if len(args) > 0 {
+		bufferSize = args[0].(int)
+	}
+	emitter.eventChannelBufferSize = bufferSize
 	emitter.init()
 	return emitter
 }
@@ -76,13 +87,9 @@ func (this *EventEmitter) init() {
 	// 默认 新增的监听器向后方
 	this.prepend = false
 
-	this.eventChannel = make(chan EventChanWrap, 100)
+	this.eventChannelFinished = true
 
-	this.eventChannelFinished = false
-
-	this.eventChannelClosed = false
-
-	go this.eventHandler()
+	this.Start()
 
 }
 
@@ -93,7 +100,7 @@ func (this *EventEmitter) Start() bool {
 	if this.eventChannelFinished {
 		this.eventChannelFinished = false
 		this.eventChannelClosed = false
-		this.eventChannel = make(chan EventChanWrap, 100)
+		this.eventChannel = make(chan EventChanWrap, this.eventChannelBufferSize)
 		go this.eventHandler()
 		return true
 	} else {
@@ -468,6 +475,10 @@ func (this *EventEmitter) SetPrepend(prepend bool) {
 
 func (this *EventEmitter) GetPrepend() bool {
 	return this.prepend
+}
+
+func (this *EventEmitter) GetChannelBufferSize() int {
+	return this.eventChannelBufferSize
 }
 
 // 销毁

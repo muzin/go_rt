@@ -126,9 +126,12 @@ func (this *TCPSocket) Init() {
 		this.bufferSize = 4096
 	}
 
+	eventChannelBufferSize := this.EventEmitter.GetChannelBufferSize()
+	channelBufferSize := eventChannelBufferSize / 2
+
 	// 读写 缓冲 通道
-	this.readChannel = make(chan ByteWrap, 100)
-	this.writeChannel = make(chan ByteWrap, 100)
+	this.readChannel = make(chan ByteWrap, channelBufferSize)
+	this.writeChannel = make(chan ByteWrap, channelBufferSize)
 
 	// 初始化 读写 缓冲区状态
 	this.readChannelFinished = false
@@ -410,9 +413,6 @@ func (this *TCPSocket) write(data []byte) (int, error) {
 			this.Conn.SetWriteDeadline(time.Now().Add(timeoutDuration))
 		}
 		cnt, err := this.Conn.Write(data)
-
-		//fmt.Printf("Conn Write: from: %v dest: %v cnt: %v, err: %v, data:%v\n",
-		//	this.LocalAddr(), this.RemoteAddr(), cnt, err, string(data))
 
 		if nil != err {
 			this.Emit("error", SocketWriteException.NewThrow(err.Error()))
