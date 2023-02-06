@@ -12,6 +12,8 @@ const (
 	// 默认最大事件监听数量
 	DEFAULT_MAX_LISTENERS = 10
 
+	DEFAULT_MAX_CHANNEL_BUFFER_SIZE = 200
+
 	EVENT_EMITTER_ERROR_LISTENER_NAME = "error"
 
 	EVENT_EMITTER_NEW_LISTENER_NAME = "newListener"
@@ -25,6 +27,10 @@ var (
 )
 
 // 事件发射器
+//
+// 事件发射器采用On/Emit的方式，发送事件和监听事件发生后需要做的业务。
+//
+// 内部采用通道机制，使事件串行，已防止事件的顺序错乱导致异常情况的发生。
 type EventEmitter struct {
 
 	// 事件监听数量
@@ -63,7 +69,7 @@ type EventEmitter struct {
 // NewEventEmitter([bufferSize])
 func NewEventEmitter(args ...interface{}) *EventEmitter {
 	emitter := &EventEmitter{}
-	bufferSize := 200
+	bufferSize := DEFAULT_MAX_CHANNEL_BUFFER_SIZE
 	if len(args) > 0 {
 		bufferSize = args[0].(int)
 	}
